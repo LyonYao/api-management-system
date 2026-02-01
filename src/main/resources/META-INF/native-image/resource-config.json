@@ -1,0 +1,16 @@
+{
+  "resources": {
+    "includes": [
+      {
+        "pattern": "db/migration/.*\\.sql"
+      },
+      {
+        "pattern": "application\\.properties"
+      },
+      {
+        "pattern": "META-INF/.*"
+      }
+    ]
+  },
+  "bundles": []
+}

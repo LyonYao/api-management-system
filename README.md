@@ -48,6 +48,9 @@ api-management-system/
 Using Docker:
 ```bash
 docker run --name apimgmt-postgres -e POSTGRES_PASSWORD=postgres -e POSTGRES_DB=apimgmt -p 5432:5432 -d postgres:14
+
+docker-compose up -d
+docker-compose down
 ```
 
 Or use your local PostgreSQL installation and create the database:
@@ -115,25 +118,88 @@ mvn verify
 
 ## AWS Lambda Deployment
 
-### Package for Lambda
+### Quick Start
+
+1. **Set environment variables:**
+```bash
+export DATABASE_URL="postgresql://your-rds.region.rds.amazonaws.com:5432/apimgmt"
+export DATABASE_USERNAME="admin"
+export DATABASE_PASSWORD="YourSecurePassword"
+```
+
+2. **Deploy (JVM mode - faster build):**
+```bash
+./deploy.sh jvm
+```
+
+3. **Or deploy (Native mode - faster runtime):**
+```bash
+./deploy.sh native
+```
+
+### Build Options
+
+#### JVM Build (Recommended for Development)
+- Build time: ~2 minutes
+- Package size: ~50MB
+- Cold start: ~2-3 seconds
+
+```bash
+mvn clean package -Plambda
+```
+
+#### Native Build (Recommended for Production)
+- Build time: ~10 minutes
+- Package size: ~30MB
+- Cold start: <1 second
 
 ```bash
 mvn clean package -Pnative -Dquarkus.native.container-build=true
 ```
 
-### Deploy to AWS
+### Deployment Scripts
 
-The packaged application can be deployed to AWS Lambda using:
-- AWS SAM CLI
-- AWS CloudFormation
-- Serverless Framework
-- Manual upload via AWS Console
+- **`deploy.sh`** / **`deploy.bat`**: Full deployment with CloudFormation
+- **`scripts/package-lambda.sh`**: Build Lambda package only
+- **`scripts/update-function.sh`**: Quick code update without infrastructure changes
+- **`scripts/local-test.sh`**: Test locally with SAM CLI
+- **`scripts/benchmark-performance.sh`**: Verify performance requirements
 
-Configuration requirements:
-- Memory: 1024 MB
-- Timeout: 30 seconds
-- Environment variables: DATABASE_URL, DATABASE_USERNAME, DATABASE_PASSWORD
-- VPC: Configure to access RDS instance
+### Configuration
+
+#### Required Parameters
+- `DATABASE_URL`: PostgreSQL connection URL
+- `DATABASE_USERNAME`: Database username
+- `DATABASE_PASSWORD`: Database password
+
+#### Optional Parameters (for VPC deployment)
+- `VPC_ID`: VPC ID where RDS is located
+- `SUBNET_IDS`: Comma-separated subnet IDs
+- `SECURITY_GROUP_IDS`: Comma-separated security group IDs
+- `DB_POOL_SIZE`: Connection pool size (default: 10)
+
+#### Lambda Function Settings
+- **Memory**: 1024 MB (configurable in sam-template.yaml)
+- **Timeout**: 30 seconds
+- **Runtime**: Java 17 or GraalVM native
+
+### Performance Requirements
+
+The system is optimized to meet these requirements:
+- **Cold Start**: < 3 seconds
+- **Warm Response**: < 500ms
+
+Verify with:
+```bash
+./scripts/benchmark-performance.sh api-management-system
+```
+
+### Documentation
+
+- [Deployment Guide](docs/DEPLOYMENT_GUIDE.md) - Comprehensive deployment instructions
+- [Database Configuration](docs/DATABASE_CONFIGURATION.md) - RDS and VPC setup
+- [Performance Optimization](docs/PERFORMANCE_OPTIMIZATION.md) - Cold start and response time optimization
+- [Scripts README](scripts/README.md) - Utility scripts documentation
 
 ## Database Migrations
 
