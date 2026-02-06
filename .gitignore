@@ -1,39 +1,50 @@
-# Maven
-target/
-pom.xml.tag
-pom.xml.releaseBackup
-pom.xml.versionsBackup
-pom.xml.next
-release.properties
-dependency-reduced-pom.xml
-buildNumber.properties
-.mvn/timing.properties
-.mvn/wrapper/maven-wrapper.jar
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
 
-# Quarkus
-.quarkus/
+# Python virtual environments
+.env/
+venv/
+ENV/
+env.bak/
+venv.bak/
 
-# Eclipse
-.project
-.classpath
-.settings/
-bin/
+# Python build artifacts
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+*.egg-info/
+.installed.cfg
+*.egg
 
-# IntelliJ
-.idea/
-*.iml
-*.ipr
-*.iws
-out/
+# Testing
+.pytest_cache/
+.tox/
 
-# VS Code
+# IDEs and editors
 .vscode/
+.idea/
+*.swp
+*.swo
+*~
 
-# NetBeans
-nb-configuration.xml
-
-# Mac
+# OS generated files
 .DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
 
 # Logs
 *.log
@@ -42,8 +53,8 @@ nb-configuration.xml
 .env
 .env.local
 
-# AWS
-.aws-sam/
+# Alembic
+alembic/versions/*.pyc
 
-# Native builds
-*-runner
+# FastAPI
+*.pyc
