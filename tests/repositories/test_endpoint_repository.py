@@ -65,7 +65,7 @@ def test_create_endpoint(endpoint_repository, api_repository, db_session):
         id=str(uuid.uuid4()),
         api_id=created_api.id,
         path="/test",
-        method="GET",
+        http_method="GET",
         description="Test Endpoint",
         created_at=datetime.utcnow(),
         updated_at=datetime.utcnow()
@@ -108,9 +108,9 @@ def test_find_by_id(endpoint_repository, api_repository, db_session):
     # 创建Endpoint
     endpoint = Endpoint(
         id=str(uuid.uuid4()),
-        api_id=created_api.id,
+        api_id=api.id,
         path="/test",
-        method="GET",
+        http_method="GET",
         description="Test Endpoint",
         created_at=datetime.utcnow(),
         updated_at=datetime.utcnow()
@@ -153,14 +153,14 @@ def test_find_by_api_id(endpoint_repository, api_repository, db_session):
     # 创建多个Endpoint
     for i in range(3):
         endpoint = Endpoint(
-            id=str(uuid.uuid4()),
-            api_id=created_api.id,
-            path=f"/test/{i}",
-            method="GET",
-            description=f"Test Endpoint {i}",
-            created_at=datetime.utcnow(),
-            updated_at=datetime.utcnow()
-        )
+                id=str(uuid.uuid4()),
+                api_id=created_api.id,
+                path=f"/test/{i}",
+                http_method="GET",
+                description=f"Test Endpoint {i}",
+                created_at=datetime.utcnow(),
+                updated_at=datetime.utcnow()
+            )
         endpoint_repository.create(endpoint)
     
     # 查找Endpoint
@@ -199,7 +199,7 @@ def test_update(endpoint_repository, api_repository, db_session):
         id=str(uuid.uuid4()),
         api_id=created_api.id,
         path="/test",
-        method="GET",
+        http_method="GET",
         description="Test Endpoint",
         created_at=datetime.utcnow(),
         updated_at=datetime.utcnow()
@@ -243,14 +243,14 @@ def test_delete(endpoint_repository, api_repository, db_session):
     
     # 创建Endpoint
     endpoint = Endpoint(
-        id=str(uuid.uuid4()),
-        api_id=created_api.id,
-        path="/test",
-        method="GET",
-        description="Test Endpoint",
-        created_at=datetime.utcnow(),
-        updated_at=datetime.utcnow()
-    )
+            id=str(uuid.uuid4()),
+            api_id=created_api.id,
+            path="/test",
+            http_method="GET",
+            description="Test Endpoint",
+            created_at=datetime.utcnow(),
+            updated_at=datetime.utcnow()
+        )
     created_endpoint = endpoint_repository.create(endpoint)
     
     # 删除Endpoint

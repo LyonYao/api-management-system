@@ -76,14 +76,14 @@ def test_create_health_check_result(health_check_result_repository, api_reposito
     
     # 创建Endpoint
     endpoint = Endpoint(
-        id=str(uuid.uuid4()),
-        api_id=api.id,
-        path="/test",
-        method="GET",
-        description="Test Endpoint",
-        created_at=datetime.utcnow(),
-        updated_at=datetime.utcnow()
-    )
+            id=str(uuid.uuid4()),
+            api_id=api.id,
+            path="/test",
+            http_method="GET",
+            description="Test Endpoint",
+            created_at=datetime.utcnow(),
+            updated_at=datetime.utcnow()
+        )
     db_session.add(endpoint)
     db_session.commit()
     
@@ -140,14 +140,14 @@ def test_find_by_endpoint_id(health_check_result_repository, api_repository, end
     
     # 创建Endpoint
     endpoint = Endpoint(
-        id=str(uuid.uuid4()),
-        api_id=api.id,
-        path="/test",
-        method="GET",
-        description="Test Endpoint",
-        created_at=datetime.utcnow(),
-        updated_at=datetime.utcnow()
-    )
+            id=str(uuid.uuid4()),
+            api_id=api.id,
+            path="/test",
+            http_method="GET",
+            description="Test Endpoint",
+            created_at=datetime.utcnow(),
+            updated_at=datetime.utcnow()
+        )
     db_session.add(endpoint)
     db_session.commit()
     
@@ -203,14 +203,14 @@ def test_find_latest_by_endpoint_id(health_check_result_repository, api_reposito
     
     # 创建Endpoint
     endpoint = Endpoint(
-        id=str(uuid.uuid4()),
-        api_id=api.id,
-        path="/test",
-        method="GET",
-        description="Test Endpoint",
-        created_at=datetime.utcnow(),
-        updated_at=datetime.utcnow()
-    )
+            id=str(uuid.uuid4()),
+            api_id=api.id,
+            path="/test",
+            http_method="GET",
+            description="Test Endpoint",
+            created_at=datetime.utcnow(),
+            updated_at=datetime.utcnow()
+        )
     db_session.add(endpoint)
     db_session.commit()
     
@@ -267,14 +267,14 @@ def test_delete(health_check_result_repository, api_repository, endpoint_reposit
     
     # 创建Endpoint
     endpoint = Endpoint(
-        id=str(uuid.uuid4()),
-        api_id=api.id,
-        path="/test",
-        method="GET",
-        description="Test Endpoint",
-        created_at=datetime.utcnow(),
-        updated_at=datetime.utcnow()
-    )
+            id=str(uuid.uuid4()),
+            api_id=api.id,
+            path="/test",
+            http_method="GET",
+            description="Test Endpoint",
+            created_at=datetime.utcnow(),
+            updated_at=datetime.utcnow()
+        )
     db_session.add(endpoint)
     db_session.commit()
     
