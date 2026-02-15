@@ -464,6 +464,7 @@ erDiagram
     SYSTEM {
         string id PK
         string name
+        string system_code
         text description
         timestamp created_at
         timestamp updated_at
@@ -474,11 +475,17 @@ erDiagram
         string system_id FK
         string name
         text description
+        string api_type
         string auth_type
         string spec_link
         string department
         string contact_name
         text contact_emails
+        string dev_host
+        string uat_host
+        string prod_host
+        string health_check_path
+        json health_check_rule
         timestamp created_at
         timestamp updated_at
     }
@@ -487,8 +494,10 @@ erDiagram
         string id PK
         string api_id FK
         string path
-        string method
+        string http_method
         text description
+        string status
+        timestamp online_date
         timestamp created_at
         timestamp updated_at
     }
@@ -536,12 +545,14 @@ erDiagram
 CREATE TABLE systems (
     id VARCHAR(36) PRIMARY KEY,
     name VARCHAR(255) NOT NULL UNIQUE,
+    system_code VARCHAR(12) NOT NULL UNIQUE,
     description TEXT,
     created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
 );
 
 CREATE INDEX idx_systems_name ON systems(name);
+CREATE INDEX idx_systems_system_code ON systems(system_code);
 ```
 
 #### apis表
@@ -551,14 +562,20 @@ CREATE TABLE apis (
     system_id VARCHAR(36) NOT NULL REFERENCES systems(id) ON DELETE CASCADE,
     name VARCHAR(255) NOT NULL,
     description TEXT,
+    api_type VARCHAR(1) NOT NULL DEFAULT 'S',
     auth_type VARCHAR(50),
-    spec_link VARCHAR(1000),
+    spec_link VARCHAR(500),
     department VARCHAR(255),
     contact_name VARCHAR(255),
     contact_emails TEXT, -- 逗号分隔的邮箱列表
+    dev_host VARCHAR(500), -- 开发环境Host
+    uat_host VARCHAR(500), -- 测试环境Host
+    prod_host VARCHAR(500), -- 生产环境Host
+    health_check_path VARCHAR(500), -- 健康检查路径
+    health_check_rule TEXT, -- JSON格式的健康检查规则
     created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    CONSTRAINT chk_auth_type CHECK (auth_type IN ('API_KEY', 'OAUTH2', 'BASIC_AUTH', 'JWT', 'NONE'))
+    CONSTRAINT chk_api_type CHECK (api_type IN ('P', 'S', 'E'))
 );
 
 CREATE INDEX idx_apis_system_id ON apis(system_id);
@@ -570,13 +587,14 @@ CREATE INDEX idx_apis_name ON apis(name);
 CREATE TABLE endpoints (
     id VARCHAR(36) PRIMARY KEY,
     api_id VARCHAR(36) NOT NULL REFERENCES apis(id) ON DELETE CASCADE,
-    path VARCHAR(1000) NOT NULL,
-    method VARCHAR(10) NOT NULL,
+    path VARCHAR(500) NOT NULL,
+    http_method VARCHAR(20) NOT NULL,
     description TEXT,
+    status VARCHAR(20) NOT NULL DEFAULT 'DEVELOPING',
+    online_date TIMESTAMP,
     created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    CONSTRAINT chk_method CHECK (method IN ('GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'HEAD', 'OPTIONS')),
-    UNIQUE (api_id, path, method)
+    CONSTRAINT chk_endpoint_status CHECK (status IN ('DEVELOPING', 'TESTING', 'ONLINE'))
 );
 
 CREATE INDEX idx_endpoints_api_id ON endpoints(api_id);
@@ -609,19 +627,16 @@ CREATE INDEX idx_api_tags_tag_id ON api_tags(tag_id);
 ```sql
 CREATE TABLE relationships (
     id VARCHAR(36) PRIMARY KEY,
-    caller_type VARCHAR(10) NOT NULL,
+    caller_type VARCHAR(50) NOT NULL,
     caller_id VARCHAR(36) NOT NULL,
-    callee_type VARCHAR(10) NOT NULL,
+    callee_type VARCHAR(50) NOT NULL,
     callee_id VARCHAR(36) NOT NULL,
-    endpoint_id VARCHAR(36) NOT NULL REFERENCES endpoints(id) ON DELETE CASCADE,
+    endpoint_id VARCHAR(36) REFERENCES endpoints(id) ON DELETE CASCADE,
     auth_type VARCHAR(50),
     auth_config JSON,
     description TEXT,
     created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    CONSTRAINT chk_caller_type CHECK (caller_type IN ('SYSTEM', 'API')),
-    CONSTRAINT chk_callee_type CHECK (callee_type IN ('SYSTEM', 'API')),
-    CONSTRAINT chk_relationship_auth_type CHECK (auth_type IN ('API_KEY', 'OAUTH2', 'BASIC_AUTH', 'JWT', 'NONE'))
+    updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
 );
 
 CREATE INDEX idx_relationships_caller ON relationships(caller_type, caller_id);
@@ -634,16 +649,19 @@ CREATE INDEX idx_relationships_endpoint ON relationships(endpoint_id);
 CREATE TABLE health_check_results (
     id VARCHAR(36) PRIMARY KEY,
     endpoint_id VARCHAR(36) NOT NULL REFERENCES endpoints(id) ON DELETE CASCADE,
-    status VARCHAR(20) NOT NULL,
+    api_id VARCHAR(36),
+    system_id VARCHAR(36),
+    status VARCHAR(50) NOT NULL,
     response_code INT,
     response_time_ms INT,
     error_message TEXT,
-    checked_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    CONSTRAINT chk_status CHECK (status IN ('SUCCESS', 'FAILURE', 'TIMEOUT'))
+    checked_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
 );
 
+CREATE INDEX idx_health_check_results_api_id ON health_check_results(api_id);
+CREATE INDEX idx_health_check_results_system_id ON health_check_results(system_id);
+CREATE INDEX idx_health_check_results_checked_at ON health_check_results(checked_at);
 CREATE INDEX idx_health_check_results_endpoint_id ON health_check_results(endpoint_id);
-CREATE INDEX idx_health_check_results_checked_at ON health_check_results(checked_at DESC);
 ```
 
 ### Python实体类（SQLAlchemy模型）
@@ -658,9 +676,10 @@ from ..database import Base
 class System(Base):
     __tablename__ = "systems"
     
-    id = Column(String(36), primary_key=True, index=True)
-    name = Column(String(255), nullable=False, unique=True, index=True)
-    description = Column(Text)
+    id = Column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
+    name = Column(String(255), nullable=False, unique=True)
+    system_code = Column(String(12), nullable=False, unique=True)
+    description = Column(Text, nullable=True)
     created_at = Column(DateTime(timezone=True), server_default=func.now())
     updated_at = Column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())
     
@@ -670,25 +689,37 @@ class System(Base):
 
 #### Api
 ```python
-from sqlalchemy import Column, String, Text, DateTime, ForeignKey
+from sqlalchemy import Column, String, Text, DateTime, ForeignKey, CheckConstraint
 from sqlalchemy.sql import func
 from sqlalchemy.orm import relationship
+import uuid
 from ..database import Base
 
 class Api(Base):
     __tablename__ = "apis"
     
-    id = Column(String(36), primary_key=True, index=True)
-    system_id = Column(String(36), ForeignKey("systems.id", ondelete="CASCADE"), nullable=False, index=True)
-    name = Column(String(255), nullable=False, index=True)
-    description = Column(Text)
-    auth_type = Column(String(50))
-    spec_link = Column(String(1000))
-    department = Column(String(255))
-    contact_name = Column(String(255))
-    contact_emails = Column(Text)  # 逗号分隔的邮箱列表
+    id = Column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
+    system_id = Column(String(36), ForeignKey("systems.id"), nullable=False)
+    name = Column(String(255), nullable=False)
+    description = Column(Text, nullable=True)
+    api_type = Column(String(1), nullable=False, default="S")
+    auth_type = Column(String(50), nullable=True)
+    spec_link = Column(String(500), nullable=True)
+    department = Column(String(255), nullable=True)
+    contact_name = Column(String(255), nullable=True)
+    contact_emails = Column(Text, nullable=True)
+    dev_host = Column(String(500), nullable=True)
+    uat_host = Column(String(500), nullable=True)
+    prod_host = Column(String(500), nullable=True)
+    health_check_path = Column(String(500), nullable=True)
+    health_check_rule = Column(Text, nullable=True)  # JSON格式存储健康检查规则
     created_at = Column(DateTime(timezone=True), server_default=func.now())
     updated_at = Column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())
+    
+    # Constraints
+    __table_args__ = (
+        CheckConstraint("api_type IN ('P', 'S', 'E')", name="chk_api_type"),
+    )
     
     # Relationships
     system = relationship("System", back_populates="apis")
@@ -698,26 +729,28 @@ class Api(Base):
 
 #### Endpoint
 ```python
-from sqlalchemy import Column, String, Text, DateTime, ForeignKey, CheckConstraint, UniqueConstraint
+from sqlalchemy import Column, String, Text, DateTime, ForeignKey, CheckConstraint
 from sqlalchemy.sql import func
 from sqlalchemy.orm import relationship
+import uuid
 from ..database import Base
 
 class Endpoint(Base):
     __tablename__ = "endpoints"
     
-    id = Column(String(36), primary_key=True, index=True)
-    api_id = Column(String(36), ForeignKey("apis.id", ondelete="CASCADE"), nullable=False, index=True)
-    path = Column(String(1000), nullable=False, index=True)
-    method = Column(String(10), nullable=False)
-    description = Column(Text)
+    id = Column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
+    api_id = Column(String(36), ForeignKey("apis.id"), nullable=False)
+    path = Column(String(500), nullable=False)
+    http_method = Column(String(20), nullable=False)
+    description = Column(Text, nullable=True)
+    status = Column(String(20), nullable=False, default="DEVELOPING")
+    online_date = Column(DateTime(timezone=True), nullable=True)
     created_at = Column(DateTime(timezone=True), server_default=func.now())
     updated_at = Column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())
     
     # Constraints
     __table_args__ = (
-        CheckConstraint("method IN ('GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'HEAD', 'OPTIONS')", name="chk_method"),
-        UniqueConstraint('api_id', 'path', 'method', name='uq_api_path_method'),
+        CheckConstraint("status IN ('DEVELOPING', 'TESTING', 'ONLINE')", name="chk_endpoint_status"),
     )
     
     # Relationships
@@ -731,13 +764,14 @@ class Endpoint(Base):
 from sqlalchemy import Column, String, DateTime
 from sqlalchemy.sql import func
 from sqlalchemy.orm import relationship
+import uuid
 from ..database import Base
 
 class Tag(Base):
     __tablename__ = "tags"
     
-    id = Column(String(36), primary_key=True, index=True)
-    name = Column(String(100), nullable=False, unique=True, index=True)
+    id = Column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
+    name = Column(String(100), nullable=False, unique=True)
     created_at = Column(DateTime(timezone=True), server_default=func.now())
     
     # Relationships
@@ -746,32 +780,26 @@ class Tag(Base):
 
 #### Relationship
 ```python
-from sqlalchemy import Column, String, Text, DateTime, ForeignKey, CheckConstraint
+from sqlalchemy import Column, String, Text, DateTime, ForeignKey, JSON
 from sqlalchemy.sql import func
 from sqlalchemy.orm import relationship
+import uuid
 from ..database import Base
 
 class Relationship(Base):
     __tablename__ = "relationships"
     
-    id = Column(String(36), primary_key=True, index=True)
-    caller_type = Column(String(10), nullable=False)
+    id = Column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
+    caller_type = Column(String(50), nullable=False)
     caller_id = Column(String(36), nullable=False)
-    callee_type = Column(String(10), nullable=False)
+    callee_type = Column(String(50), nullable=False)
     callee_id = Column(String(36), nullable=False)
-    endpoint_id = Column(String(36), ForeignKey("endpoints.id", ondelete="CASCADE"), nullable=False, index=True)
-    auth_type = Column(String(50))
-    auth_config = Column(String)  # JSON string
-    description = Column(Text)
+    endpoint_id = Column(String(36), ForeignKey("endpoints.id"), nullable=True)
+    auth_type = Column(String(50), nullable=True)
+    auth_config = Column(JSON, nullable=True)
+    description = Column(Text, nullable=True)
     created_at = Column(DateTime(timezone=True), server_default=func.now())
     updated_at = Column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())
-    
-    # Constraints
-    __table_args__ = (
-        CheckConstraint("caller_type IN ('SYSTEM', 'API')", name="chk_caller_type"),
-        CheckConstraint("callee_type IN ('SYSTEM', 'API')", name="chk_callee_type"),
-        CheckConstraint("auth_type IN ('API_KEY', 'OAUTH2', 'BASIC_AUTH', 'JWT', 'NONE')", name="chk_relationship_auth_type"),
-    )
     
     # Relationships
     endpoint = relationship("Endpoint", back_populates="relationships")
@@ -779,26 +807,30 @@ class Relationship(Base):
 
 #### HealthCheckResult
 ```python
-from sqlalchemy import Column, String, Text, DateTime, ForeignKey, Integer, CheckConstraint, Index
+from sqlalchemy import Column, String, Text, DateTime, ForeignKey, Integer, Index
 from sqlalchemy.sql import func
 from sqlalchemy.orm import relationship
+import uuid
 from ..database import Base
 
 class HealthCheckResult(Base):
     __tablename__ = "health_check_results"
     
-    id = Column(String(36), primary_key=True, index=True)
-    endpoint_id = Column(String(36), ForeignKey("endpoints.id", ondelete="CASCADE"), nullable=False, index=True)
-    status = Column(String(20), nullable=False)
-    response_code = Column(Integer)
-    response_time_ms = Column(Integer)
-    error_message = Column(Text)
-    checked_at = Column(DateTime(timezone=True), server_default=func.now(), index=True)
+    id = Column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
+    endpoint_id = Column(String(36), ForeignKey("endpoints.id"), nullable=False)
+    api_id = Column(String(36), nullable=True)
+    system_id = Column(String(36), nullable=True)
+    status = Column(String(50), nullable=False)
+    response_code = Column(Integer, nullable=True)
+    response_time_ms = Column(Integer, nullable=True)
+    error_message = Column(Text, nullable=True)
+    checked_at = Column(DateTime(timezone=True), server_default=func.now())
     
-    # Constraints
+    # 索引
     __table_args__ = (
-        CheckConstraint("status IN ('SUCCESS', 'FAILURE', 'TIMEOUT')", name="chk_status"),
-        Index('idx_health_check_results_checked_at', 'checked_at', postgresql_using='btree', postgresql_descending_in_nulls_first=True),
+        Index('idx_health_check_results_api_id', 'api_id'),
+        Index('idx_health_check_results_system_id', 'system_id'),
+        Index('idx_health_check_results_checked_at', 'checked_at'),
     )
     
     # Relationships
@@ -843,7 +875,7 @@ class HealthCheckStatus(str, Enum):
 #### ApiDTO
 ```python
 from pydantic import BaseModel, Field
-from typing import List, Set, Optional
+from typing import List, Set, Optional, Dict, Any
 from datetime import datetime
 from .enums import AuthType
 
@@ -859,6 +891,10 @@ class ApiDTO(BaseModel):
     contact_name: Optional[str] = Field(None, max_length=255)
     contact_emails: List[str] = []  # 邮箱列表
     tags: Set[str] = set()
+    uat_host: Optional[str] = Field(None, max_length=500)  # 测试环境Host
+    prod_host: Optional[str] = Field(None, max_length=500)  # 生产环境Host
+    health_check_path: Optional[str] = Field(None, max_length=1000)  # 健康检查路径
+    health_check_rule: Optional[Dict[str, Any]] = None  # 健康检查规则
     endpoints: List['EndpointDTO'] = []
     created_at: Optional[datetime] = None
     updated_at: Optional[datetime] = None
@@ -870,7 +906,7 @@ class ApiDTO(BaseModel):
 #### CreateApiRequest
 ```python
 from pydantic import BaseModel, Field, EmailStr
-from typing import List, Set, Optional
+from typing import List, Set, Optional, Dict, Any
 from .enums import AuthType
 
 class CreateApiRequest(BaseModel):
@@ -883,6 +919,10 @@ class CreateApiRequest(BaseModel):
     contact_name: Optional[str] = Field(None, max_length=255)
     contact_emails: List[EmailStr] = []  # 邮箱列表，每个邮箱都需要验证格式
     tags: Optional[Set[str]] = set()
+    uat_host: Optional[str] = Field(None, max_length=500)  # 测试环境Host
+    prod_host: Optional[str] = Field(None, max_length=500)  # 生产环境Host
+    health_check_path: Optional[str] = Field(None, max_length=1000)  # 健康检查路径
+    health_check_rule: Optional[Dict[str, Any]] = None  # 健康检查规则
 ```
 
 #### EndpointDTO
@@ -898,6 +938,7 @@ class EndpointDTO(BaseModel):
     path: str = Field(..., max_length=1000)
     method: HttpMethod
     description: Optional[str] = Field(None, max_length=2000)
+    dev_host: Optional[str] = Field(None, max_length=500)  # 开发环境Host
     created_at: Optional[datetime] = None
     updated_at: Optional[datetime] = None
     
@@ -916,6 +957,7 @@ class CreateEndpointRequest(BaseModel):
     path: str = Field(..., max_length=1000)
     method: HttpMethod
     description: Optional[str] = Field(None, max_length=2000)
+    dev_host: Optional[str] = Field(None, max_length=500)  # 开发环境Host
 ```
 
 #### RelationshipDTO

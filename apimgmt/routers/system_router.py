@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, Request
 from sqlalchemy.orm import Session
 from typing import List
 import uuid
@@ -7,7 +7,10 @@ from apimgmt.db.database import get_db
 from apimgmt.schemas.system import CreateSystemRequest, UpdateSystemRequest, SystemDTO
 from apimgmt.services.system_service import SystemService
 from apimgmt.repositories.system_repository import SystemRepository
+from apimgmt.repositories.audit_repository import AuditLogRepository
+from apimgmt.services.audit_service import AuditLogService
 from apimgmt.exceptions import ResourceNotFoundException, DuplicateResourceException, ValidationException
+from apimgmt.dependencies.auth_dependency import get_current_user
 
 
 router = APIRouter()
@@ -16,12 +19,15 @@ router = APIRouter()
 def get_system_service(db: Session = Depends(get_db)) -> SystemService:
     """获取系统服务"""
     system_repository = SystemRepository(db)
-    return SystemService(system_repository)
+    audit_repository = AuditLogRepository(db)
+    audit_service = AuditLogService(audit_repository)
+    return SystemService(system_repository, audit_service)
 
 
 @router.post("", response_model=SystemDTO, status_code=201)
 async def create_system(
     request: CreateSystemRequest,
+    current_user = Depends(get_current_user),
     system_service: SystemService = Depends(get_system_service)
 ):
     """创建系统"""
@@ -46,7 +52,7 @@ async def get_all_systems(
 
 @router.get("/{system_id}", response_model=SystemDTO)
 async def get_system(
-    system_id: uuid.UUID,
+    system_id: str,
     system_service: SystemService = Depends(get_system_service)
 ):
     """根据ID获取系统"""
@@ -60,8 +66,9 @@ async def get_system(
 
 @router.put("/{system_id}", response_model=SystemDTO)
 async def update_system(
-    system_id: uuid.UUID,
+    system_id: str,
     request: UpdateSystemRequest,
+    current_user = Depends(get_current_user),
     system_service: SystemService = Depends(get_system_service)
 ):
     """更新系统"""
@@ -77,7 +84,8 @@ async def update_system(
 
 @router.delete("/{system_id}", status_code=204)
 async def delete_system(
-    system_id: uuid.UUID,
+    system_id: str,
+    current_user = Depends(get_current_user),
     system_service: SystemService = Depends(get_system_service)
 ):
     """删除系统"""

@@ -42,7 +42,8 @@ def test_create_endpoint(endpoint_repository, api_repository, db_session):
     system = System(
         id=str(uuid.uuid4()),
         name="Test System",
-        description="Test Description",
+        system_code="TESTAA16F5A6",
+description="Test Description",
         created_at=datetime.utcnow(),
         updated_at=datetime.utcnow()
     )
@@ -55,6 +56,10 @@ def test_create_endpoint(endpoint_repository, api_repository, db_session):
         system_id=system.id,
         name="Test API",
         description="Test Description",
+        uat_host="http://uat.example.com",
+        prod_host="http://prod.example.com",
+        health_check_path="/health",
+        health_check_rule='{"expected_status": 200, "expected_body": "OK"}',
         created_at=datetime.utcnow(),
         updated_at=datetime.utcnow()
     )
@@ -67,6 +72,7 @@ def test_create_endpoint(endpoint_repository, api_repository, db_session):
         path="/test",
         http_method="GET",
         description="Test Endpoint",
+        status="DEVELOPING",
         created_at=datetime.utcnow(),
         updated_at=datetime.utcnow()
     )
@@ -87,7 +93,8 @@ def test_find_by_id(endpoint_repository, api_repository, db_session):
     system = System(
         id=str(uuid.uuid4()),
         name="Test System",
-        description="Test Description",
+        system_code="TESTFD0FA10F",
+description="Test Description",
         created_at=datetime.utcnow(),
         updated_at=datetime.utcnow()
     )
@@ -100,6 +107,10 @@ def test_find_by_id(endpoint_repository, api_repository, db_session):
         system_id=system.id,
         name="Test API",
         description="Test Description",
+        uat_host="http://uat.example.com",
+        prod_host="http://prod.example.com",
+        health_check_path="/health",
+        health_check_rule='{"expected_status": 200, "expected_body": "OK"}',
         created_at=datetime.utcnow(),
         updated_at=datetime.utcnow()
     )
@@ -112,6 +123,7 @@ def test_find_by_id(endpoint_repository, api_repository, db_session):
         path="/test",
         http_method="GET",
         description="Test Endpoint",
+        status="DEVELOPING",
         created_at=datetime.utcnow(),
         updated_at=datetime.utcnow()
     )
@@ -132,7 +144,8 @@ def test_find_by_api_id(endpoint_repository, api_repository, db_session):
     system = System(
         id=str(uuid.uuid4()),
         name="Test System",
-        description="Test Description",
+        system_code="TESTBF13FCA0",
+description="Test Description",
         created_at=datetime.utcnow(),
         updated_at=datetime.utcnow()
     )
@@ -145,6 +158,10 @@ def test_find_by_api_id(endpoint_repository, api_repository, db_session):
         system_id=system.id,
         name="Test API",
         description="Test Description",
+        uat_host="http://uat.example.com",
+        prod_host="http://prod.example.com",
+        health_check_path="/health",
+        health_check_rule='{"expected_status": 200, "expected_body": "OK"}',
         created_at=datetime.utcnow(),
         updated_at=datetime.utcnow()
     )
@@ -158,6 +175,7 @@ def test_find_by_api_id(endpoint_repository, api_repository, db_session):
                 path=f"/test/{i}",
                 http_method="GET",
                 description=f"Test Endpoint {i}",
+                status="DEVELOPING",
                 created_at=datetime.utcnow(),
                 updated_at=datetime.utcnow()
             )
@@ -176,7 +194,8 @@ def test_update(endpoint_repository, api_repository, db_session):
     system = System(
         id=str(uuid.uuid4()),
         name="Test System",
-        description="Test Description",
+        system_code="TESTE6D4EBB9",
+description="Test Description",
         created_at=datetime.utcnow(),
         updated_at=datetime.utcnow()
     )
@@ -189,6 +208,10 @@ def test_update(endpoint_repository, api_repository, db_session):
         system_id=system.id,
         name="Test API",
         description="Test Description",
+        uat_host="http://uat.example.com",
+        prod_host="http://prod.example.com",
+        health_check_path="/health",
+        health_check_rule='{"expected_status": 200, "expected_body": "OK"}',
         created_at=datetime.utcnow(),
         updated_at=datetime.utcnow()
     )
@@ -201,6 +224,7 @@ def test_update(endpoint_repository, api_repository, db_session):
         path="/test",
         http_method="GET",
         description="Test Endpoint",
+        status="DEVELOPING",
         created_at=datetime.utcnow(),
         updated_at=datetime.utcnow()
     )
@@ -208,13 +232,13 @@ def test_update(endpoint_repository, api_repository, db_session):
     
     # 更新Endpoint
     created_endpoint.path = "/updated"
-    created_endpoint.method = "POST"
+    created_endpoint.http_method = "POST"
     updated_endpoint = endpoint_repository.update(created_endpoint)
     
     # 验证结果
     assert updated_endpoint is not None
     assert updated_endpoint.path == "/updated"
-    assert updated_endpoint.method == "POST"
+    assert updated_endpoint.http_method == "POST"
 
 
 def test_delete(endpoint_repository, api_repository, db_session):
@@ -223,7 +247,8 @@ def test_delete(endpoint_repository, api_repository, db_session):
     system = System(
         id=str(uuid.uuid4()),
         name="Test System",
-        description="Test Description",
+        system_code="TEST904AD989",
+description="Test Description",
         created_at=datetime.utcnow(),
         updated_at=datetime.utcnow()
     )
@@ -236,6 +261,10 @@ def test_delete(endpoint_repository, api_repository, db_session):
         system_id=system.id,
         name="Test API",
         description="Test Description",
+        uat_host="http://uat.example.com",
+        prod_host="http://prod.example.com",
+        health_check_path="/health",
+        health_check_rule='{"expected_status": 200, "expected_body": "OK"}',
         created_at=datetime.utcnow(),
         updated_at=datetime.utcnow()
     )
@@ -248,6 +277,7 @@ def test_delete(endpoint_repository, api_repository, db_session):
             path="/test",
             http_method="GET",
             description="Test Endpoint",
+            status="DEVELOPING",
             created_at=datetime.utcnow(),
             updated_at=datetime.utcnow()
         )

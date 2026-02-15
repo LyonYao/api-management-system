@@ -50,7 +50,8 @@ def test_create_health_check_result(health_check_result_repository, api_reposito
     system = System(
         id=str(uuid.uuid4()),
         name="Test System",
-        description="Test Description",
+        system_code="TEST2FA92525",
+description="Test Description",
         created_at=datetime.utcnow(),
         updated_at=datetime.utcnow()
     )
@@ -114,7 +115,8 @@ def test_find_by_endpoint_id(health_check_result_repository, api_repository, end
     system = System(
         id=str(uuid.uuid4()),
         name="Test System",
-        description="Test Description",
+        system_code="TESTBACC2CC5",
+description="Test Description",
         created_at=datetime.utcnow(),
         updated_at=datetime.utcnow()
     )
@@ -177,7 +179,8 @@ def test_find_latest_by_endpoint_id(health_check_result_repository, api_reposito
     system = System(
         id=str(uuid.uuid4()),
         name="Test System",
-        description="Test Description",
+        system_code="TEST7237DC02",
+description="Test Description",
         created_at=datetime.utcnow(),
         updated_at=datetime.utcnow()
     )
@@ -241,7 +244,8 @@ def test_delete(health_check_result_repository, api_repository, endpoint_reposit
     system = System(
         id=str(uuid.uuid4()),
         name="Test System",
-        description="Test Description",
+        system_code="TEST2F931596",
+description="Test Description",
         created_at=datetime.utcnow(),
         updated_at=datetime.utcnow()
     )

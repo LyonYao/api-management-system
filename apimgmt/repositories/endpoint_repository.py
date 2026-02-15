@@ -19,11 +19,15 @@ class EndpointRepository:
     
     def find_by_id(self, endpoint_id: Union[uuid.UUID, str]) -> Optional[Endpoint]:
         """根据ID查找端点"""
-        return self.db.query(Endpoint).filter(Endpoint.id == endpoint_id).first()
+        # 确保endpoint_id是字符串类型
+        endpoint_id_str = str(endpoint_id)
+        return self.db.query(Endpoint).filter(Endpoint.id == endpoint_id_str).first()
     
     def find_by_api_id(self, api_id: Union[uuid.UUID, str]) -> List[Endpoint]:
         """根据API ID查找端点"""
-        return self.db.query(Endpoint).filter(Endpoint.api_id == api_id).order_by(Endpoint.path, Endpoint.http_method).all()
+        # 确保api_id是字符串类型
+        api_id_str = str(api_id)
+        return self.db.query(Endpoint).filter(Endpoint.api_id == api_id_str).order_by(Endpoint.path, Endpoint.http_method).all()
     
     def find_all(self) -> List[Endpoint]:
         """查找所有端点"""
@@ -31,10 +35,12 @@ class EndpointRepository:
     
     def find_by_api_id_path_and_method(self, api_id: Union[uuid.UUID, str], path: str, method: str) -> Optional[Endpoint]:
         """根据API ID、路径和HTTP方法查找端点"""
+        # 确保api_id是字符串类型
+        api_id_str = str(api_id)
         return (
             self.db.query(Endpoint)
             .filter(
-                Endpoint.api_id == api_id,
+                Endpoint.api_id == api_id_str,
                 Endpoint.path == path,
                 Endpoint.http_method == method
             )

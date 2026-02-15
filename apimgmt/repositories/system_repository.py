@@ -20,11 +20,17 @@ class SystemRepository:
     
     def find_by_id(self, system_id: Union[uuid.UUID, str]) -> Optional[System]:
         """根据ID查找系统"""
-        return self.db.query(System).filter(System.id == system_id).first()
+        # 确保system_id是字符串类型
+        system_id_str = str(system_id)
+        return self.db.query(System).filter(System.id == system_id_str).first()
     
     def find_by_name(self, name: str) -> Optional[System]:
         """根据名称查找系统"""
         return self.db.query(System).filter(System.name == name).first()
+    
+    def find_by_system_code(self, system_code: str) -> Optional[System]:
+        """根据系统编号查找系统"""
+        return self.db.query(System).filter(System.system_code == system_code).first()
     
     def find_all(self) -> List[System]:
         """查找所有系统"""
@@ -54,4 +60,6 @@ class SystemRepository:
     def count_apis_by_system_id(self, system_id: Union[uuid.UUID, str]) -> int:
         """统计系统的API数量"""
         from apimgmt.models.api import Api
-        return self.db.query(func.count(Api.id)).filter(Api.system_id == system_id).scalar() or 0
+        # 确保system_id是字符串类型
+        system_id_str = str(system_id)
+        return self.db.query(func.count(Api.id)).filter(Api.system_id == system_id_str).scalar() or 0

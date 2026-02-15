@@ -1,4 +1,4 @@
-from sqlalchemy import Column, String, DateTime, ForeignKey, Text
+from sqlalchemy import Column, String, DateTime, ForeignKey, Text, CheckConstraint
 from sqlalchemy.sql import func
 import uuid
 
@@ -13,5 +13,11 @@ class Endpoint(Base):
     path = Column(String(500), nullable=False)
     http_method = Column(String(20), nullable=False)
     description = Column(Text, nullable=True)
+    status = Column(String(20), nullable=False, default="DEVELOPING")
+    online_date = Column(DateTime(timezone=True), nullable=True)
     created_at = Column(DateTime(timezone=True), server_default=func.now())
     updated_at = Column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())
+    
+    __table_args__ = (
+        CheckConstraint("status IN ('DEVELOPING', 'TESTING', 'ONLINE')", name="chk_endpoint_status"),
+    )

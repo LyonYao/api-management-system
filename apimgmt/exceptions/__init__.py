@@ -20,3 +20,9 @@ class SystemException(Exception):
     """系统异常"""
     def __init__(self, message: str):
         super().__init__(message)
+
+
+class AuthenticationException(Exception):
+    """认证异常"""
+    def __init__(self, message: str):
+        super().__init__(message)

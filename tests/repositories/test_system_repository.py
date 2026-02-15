@@ -33,6 +33,7 @@ def test_create_system(system_repository):
     system = System(
         id=str(uuid.uuid4()),
         name="Test System",
+        system_code="TESTSYS000001",
         description="Test Description",
         created_at=datetime.utcnow(),
         updated_at=datetime.utcnow()
@@ -54,6 +55,7 @@ def test_find_by_id(system_repository):
     system = System(
         id=str(uuid.uuid4()),
         name="Test System",
+        system_code="TESTSYS000002",
         description="Test Description",
         created_at=datetime.utcnow(),
         updated_at=datetime.utcnow()
@@ -75,6 +77,7 @@ def test_find_by_name(system_repository):
     system = System(
         id=str(uuid.uuid4()),
         name="Test System",
+        system_code="TESTSYS000003",
         description="Test Description",
         created_at=datetime.utcnow(),
         updated_at=datetime.utcnow()
@@ -96,6 +99,7 @@ def test_find_all(system_repository):
         system = System(
             id=str(uuid.uuid4()),
             name=f"Test System {i}",
+            system_code=f"TESTSYS00000{i+4}",
             description=f"Test Description {i}",
             created_at=datetime.utcnow(),
             updated_at=datetime.utcnow()
@@ -115,6 +119,7 @@ def test_update(system_repository):
     system = System(
         id=str(uuid.uuid4()),
         name="Test System",
+        system_code="TESTSYS000007",
         description="Test Description",
         created_at=datetime.utcnow(),
         updated_at=datetime.utcnow()
@@ -138,6 +143,7 @@ def test_delete(system_repository):
     system = System(
         id=str(uuid.uuid4()),
         name="Test System",
+        system_code="TESTSYS000008",
         description="Test Description",
         created_at=datetime.utcnow(),
         updated_at=datetime.utcnow()
@@ -153,3 +159,25 @@ def test_delete(system_repository):
     # 验证系统已删除
     found_system = system_repository.find_by_id(created_system.id)
     assert found_system is None
+
+
+def test_find_by_system_code(system_repository):
+    """测试根据系统编号查找系统"""
+    # 创建系统
+    system = System(
+        id=str(uuid.uuid4()),
+        name="Test System",
+        system_code="TESTSYS000009",
+        description="Test Description",
+        created_at=datetime.utcnow(),
+        updated_at=datetime.utcnow()
+    )
+    created_system = system_repository.create(system)
+    
+    # 查找系统
+    found_system = system_repository.find_by_system_code(created_system.system_code)
+    
+    # 验证结果
+    assert found_system is not None
+    assert found_system.system_code == created_system.system_code
+    assert found_system.name == created_system.name

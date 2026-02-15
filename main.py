@@ -2,7 +2,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from contextlib import asynccontextmanager
 
-from apimgmt.db.database import engine, Base
+from apimgmt.db.database import engine, Base, SessionLocal
 # 导入所有模型，确保表被正确创建
 from apimgmt.models.api import Api
 from apimgmt.models.system import System
@@ -11,7 +11,16 @@ from apimgmt.models.tag import Tag
 from apimgmt.models.api_tag import ApiTag
 from apimgmt.models.relationship import Relationship
 from apimgmt.models.health_check_result import HealthCheckResult
+from apimgmt.models.user import User
+from apimgmt.models.audit import AuditLog
 from apimgmt.routers import api_router, system_router, endpoint_router, relationship_router, health_check_router
+from apimgmt.routers.auth_router import auth_router
+from apimgmt.routers.audit_router import router as audit_router
+from apimgmt.middleware.auth_middleware import AuthMiddleware
+from apimgmt.middleware.context_middleware import UserContextMiddleware
+from apimgmt.repositories.user_repository import UserRepository
+from apimgmt.services.auth_service import AuthService
+from apimgmt.utils.logger import app_logger
 
 
 @asynccontextmanager
@@ -22,8 +31,33 @@ async def lifespan(app: FastAPI):
     # 这里保留create_all()作为备用，确保在没有执行迁移时也能创建基本结构
     try:
         Base.metadata.create_all(bind=engine)
+        
+        # 初始化admin用户
+        db = SessionLocal()
+        try:
+            user_repository = UserRepository(db)
+            auth_service = AuthService(user_repository)
+            
+            # 检查是否存在admin用户
+            admin_user = user_repository.find_by_username("admin")
+            if not admin_user:
+                # 创建默认admin用户
+                admin_user = auth_service.create_user(
+                    username="admin",
+                    password="admin123",
+                    full_name="System Administrator",
+                    email="admin@example.com"
+                )
+                app_logger.info("Admin user created successfully: username=admin, password=admin123")
+            else:
+                app_logger.info("Admin user already exists")
+        except Exception as e:
+            app_logger.error(f"Admin user initialization error: {e}")
+        finally:
+            db.close()
+            
     except Exception as e:
-        print(f"Database initialization error: {e}")
+        app_logger.error(f"Database initialization error: {e}")
     yield
     # Shutdown
     pass
@@ -47,12 +81,20 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+# Add user context middleware
+app.add_middleware(UserContextMiddleware)
+
+# Add authentication middleware
+app.add_middleware(AuthMiddleware)
+
 # Include routers
+app.include_router(auth_router, prefix="/api/v1/auth", tags=["auth"])
 app.include_router(api_router, prefix="/api/v1/apis", tags=["apis"])
 app.include_router(system_router, prefix="/api/v1/systems", tags=["systems"])
 app.include_router(endpoint_router, prefix="/api/v1/endpoints", tags=["endpoints"])
 app.include_router(relationship_router, prefix="/api/v1/relationships", tags=["relationships"])
 app.include_router(health_check_router, prefix="/api/v1/health", tags=["health"])
+app.include_router(audit_router, prefix="/api/v1/audit", tags=["audit"])
 
 
 @app.get("/")
@@ -74,4 +116,4 @@ async def health_check():
 
 if __name__ == "__main__":
     import uvicorn
-    uvicorn.run("main:app", host="0.0.0.0", port=8080, reload=True)
+    uvicorn.run("main:app", host="0.0.0.0", port=8000, reload=True)

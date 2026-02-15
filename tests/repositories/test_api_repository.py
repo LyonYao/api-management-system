@@ -34,7 +34,8 @@ def test_create_api(api_repository, db_session):
     system = System(
         id=str(uuid.uuid4()),
         name="Test System",
-        description="Test Description",
+        system_code="TEST8A439A5E",
+description="Test Description",
         created_at=datetime.utcnow(),
         updated_at=datetime.utcnow()
     )
@@ -47,11 +48,17 @@ def test_create_api(api_repository, db_session):
         system_id=system.id,
         name="Test API",
         description="Test Description",
+        api_type="S",
         auth_type="NONE",
         spec_link="https://example.com/spec",
         department="Engineering",
         contact_name="Test Contact",
         contact_emails="test@example.com",
+        dev_host="http://dev.example.com",
+        uat_host="http://uat.example.com",
+        prod_host="http://prod.example.com",
+        health_check_path="/health",
+        health_check_rule='{"expected_status": 200}',
         created_at=datetime.utcnow(),
         updated_at=datetime.utcnow()
     )
@@ -64,6 +71,9 @@ def test_create_api(api_repository, db_session):
     assert created_api.id == api.id
     assert created_api.name == api.name
     assert created_api.system_id == system.id
+    assert created_api.dev_host == api.dev_host
+    assert created_api.uat_host == api.uat_host
+    assert created_api.prod_host == api.prod_host
 
 
 def test_find_by_id(api_repository, db_session):
@@ -72,7 +82,8 @@ def test_find_by_id(api_repository, db_session):
     system = System(
         id=str(uuid.uuid4()),
         name="Test System",
-        description="Test Description",
+        system_code="TESTF6E686F7",
+description="Test Description",
         created_at=datetime.utcnow(),
         updated_at=datetime.utcnow()
     )
@@ -85,6 +96,7 @@ def test_find_by_id(api_repository, db_session):
         system_id=system.id,
         name="Test API",
         description="Test Description",
+        api_type="S",
         created_at=datetime.utcnow(),
         updated_at=datetime.utcnow()
     )
@@ -105,7 +117,8 @@ def test_find_by_system_id(api_repository, db_session):
     system = System(
         id=str(uuid.uuid4()),
         name="Test System",
-        description="Test Description",
+        system_code="TEST03F35714",
+description="Test Description",
         created_at=datetime.utcnow(),
         updated_at=datetime.utcnow()
     )
@@ -119,6 +132,7 @@ def test_find_by_system_id(api_repository, db_session):
             system_id=system.id,
             name=f"Test API {i}",
             description=f"Test Description {i}",
+            api_type="S",
             created_at=datetime.utcnow(),
             updated_at=datetime.utcnow()
         )
@@ -137,7 +151,8 @@ def test_update(api_repository, db_session):
     system = System(
         id=str(uuid.uuid4()),
         name="Test System",
-        description="Test Description",
+        system_code="TEST601A6674",
+description="Test Description",
         created_at=datetime.utcnow(),
         updated_at=datetime.utcnow()
     )
@@ -150,6 +165,10 @@ def test_update(api_repository, db_session):
         system_id=system.id,
         name="Test API",
         description="Test Description",
+        api_type="S",
+        dev_host="http://dev.example.com",
+        uat_host="http://uat.example.com",
+        prod_host="http://prod.example.com",
         created_at=datetime.utcnow(),
         updated_at=datetime.utcnow()
     )
@@ -158,12 +177,18 @@ def test_update(api_repository, db_session):
     # 更新API
     created_api.name = "Updated API"
     created_api.description = "Updated Description"
+    created_api.dev_host = "http://updated-dev.example.com"
+    created_api.uat_host = "http://updated-uat.example.com"
+    created_api.prod_host = "http://updated-prod.example.com"
     updated_api = api_repository.update(created_api)
     
     # 验证结果
     assert updated_api is not None
     assert updated_api.name == "Updated API"
     assert updated_api.description == "Updated Description"
+    assert updated_api.dev_host == "http://updated-dev.example.com"
+    assert updated_api.uat_host == "http://updated-uat.example.com"
+    assert updated_api.prod_host == "http://updated-prod.example.com"
 
 
 def test_delete(api_repository, db_session):
@@ -172,7 +197,8 @@ def test_delete(api_repository, db_session):
     system = System(
         id=str(uuid.uuid4()),
         name="Test System",
-        description="Test Description",
+        system_code="TEST33D1AEED",
+description="Test Description",
         created_at=datetime.utcnow(),
         updated_at=datetime.utcnow()
     )
@@ -185,6 +211,7 @@ def test_delete(api_repository, db_session):
         system_id=system.id,
         name="Test API",
         description="Test Description",
+        api_type="S",
         created_at=datetime.utcnow(),
         updated_at=datetime.utcnow()
     )

@@ -22,7 +22,9 @@ class ApiRepository:
     
     def find_by_id(self, api_id: Union[uuid.UUID, str]) -> Optional[Api]:
         """根据ID查找API"""
-        return self.db.query(Api).filter(Api.id == api_id).first()
+        # 确保api_id是字符串类型
+        api_id_str = str(api_id)
+        return self.db.query(Api).filter(Api.id == api_id_str).first()
     
     def find_all(self) -> List[Api]:
         """查找所有API"""
@@ -30,7 +32,9 @@ class ApiRepository:
     
     def find_by_system_id(self, system_id: Union[uuid.UUID, str]) -> List[Api]:
         """根据系统ID查找API"""
-        return self.db.query(Api).filter(Api.system_id == system_id).order_by(Api.name).all()
+        # 确保system_id是字符串类型
+        system_id_str = str(system_id)
+        return self.db.query(Api).filter(Api.system_id == system_id_str).order_by(Api.name).all()
     
     def find_by_tags(self, tags: Set[str]) -> List[Api]:
         """根据标签查找API"""

@@ -97,7 +97,8 @@ def test_find_by_api_id(tag_repository, api_repository, db_session):
     system = System(
         id=str(uuid.uuid4()),
         name="Test System",
-        description="Test Description",
+        system_code="TEST91A0435A",
+description="Test Description",
         created_at=datetime.utcnow(),
         updated_at=datetime.utcnow()
     )

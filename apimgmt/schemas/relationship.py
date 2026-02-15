@@ -8,10 +8,10 @@ import json
 class CreateRelationshipRequest(BaseModel):
     """创建调用关系请求"""
     caller_type: str = Field(..., description="调用方类型")
-    caller_id: uuid.UUID = Field(..., description="调用方ID")
+    caller_id: str = Field(..., description="调用方ID")
     callee_type: str = Field(..., description="被调用方类型")
-    callee_id: uuid.UUID = Field(..., description="被调用方ID")
-    endpoint_id: Optional[uuid.UUID] = Field(None, description="端点ID")
+    callee_id: str = Field(..., description="被调用方ID")
+    endpoint_id: Optional[str] = Field(None, description="端点ID")
     auth_type: Optional[str] = Field(None, description="认证类型")
     auth_config: Optional[Dict[str, Any]] = Field(None, description="认证配置")
     description: Optional[str] = Field(None, description="调用关系描述")
@@ -20,10 +20,10 @@ class CreateRelationshipRequest(BaseModel):
 class UpdateRelationshipRequest(BaseModel):
     """更新调用关系请求"""
     caller_type: Optional[str] = Field(None, description="调用方类型")
-    caller_id: Optional[uuid.UUID] = Field(None, description="调用方ID")
+    caller_id: Optional[str] = Field(None, description="调用方ID")
     callee_type: Optional[str] = Field(None, description="被调用方类型")
-    callee_id: Optional[uuid.UUID] = Field(None, description="被调用方ID")
-    endpoint_id: Optional[uuid.UUID] = Field(None, description="端点ID")
+    callee_id: Optional[str] = Field(None, description="被调用方ID")
+    endpoint_id: Optional[str] = Field(None, description="端点ID")
     auth_type: Optional[str] = Field(None, description="认证类型")
     auth_config: Optional[Dict[str, Any]] = Field(None, description="认证配置")
     description: Optional[str] = Field(None, description="调用关系描述")
@@ -31,12 +31,12 @@ class UpdateRelationshipRequest(BaseModel):
 
 class RelationshipDTO(BaseModel):
     """调用关系DTO"""
-    id: uuid.UUID
+    id: str
     caller_type: str
-    caller_id: uuid.UUID
+    caller_id: str
     callee_type: str
-    callee_id: uuid.UUID
-    endpoint_id: Optional[uuid.UUID]
+    callee_id: str
+    endpoint_id: Optional[str]
     auth_type: Optional[str]
     auth_config: Optional[Dict[str, Any]]
     description: Optional[str]

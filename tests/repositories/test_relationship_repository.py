@@ -42,6 +42,7 @@ def test_create_relationship(relationship_repository, api_repository, db_session
     system1 = System(
         id=str(uuid.uuid4()),
         name="Source System",
+        system_code="SRC_SYS_001",
         description="Source Description",
         created_at=datetime.utcnow(),
         updated_at=datetime.utcnow()
@@ -49,6 +50,7 @@ def test_create_relationship(relationship_repository, api_repository, db_session
     system2 = System(
         id=str(uuid.uuid4()),
         name="Target System",
+        system_code="TGT_SYS_001",
         description="Target Description",
         created_at=datetime.utcnow(),
         updated_at=datetime.utcnow()
@@ -104,6 +106,7 @@ def test_find_by_id(relationship_repository, api_repository, db_session):
     system1 = System(
         id=str(uuid.uuid4()),
         name="Source System",
+        system_code="SRC_SYS_002",
         description="Source Description",
         created_at=datetime.utcnow(),
         updated_at=datetime.utcnow()
@@ -111,6 +114,7 @@ def test_find_by_id(relationship_repository, api_repository, db_session):
     system2 = System(
         id=str(uuid.uuid4()),
         name="Target System",
+        system_code="TGT_SYS_002",
         description="Target Description",
         created_at=datetime.utcnow(),
         updated_at=datetime.utcnow()
@@ -167,6 +171,7 @@ def test_update(relationship_repository, api_repository, db_session):
     system1 = System(
         id=str(uuid.uuid4()),
         name="Source System",
+        system_code="SRC_SYS_003",
         description="Source Description",
         created_at=datetime.utcnow(),
         updated_at=datetime.utcnow()
@@ -174,6 +179,7 @@ def test_update(relationship_repository, api_repository, db_session):
     system2 = System(
         id=str(uuid.uuid4()),
         name="Target System",
+        system_code="TGT_SYS_003",
         description="Target Description",
         created_at=datetime.utcnow(),
         updated_at=datetime.utcnow()
@@ -229,6 +235,7 @@ def test_delete(relationship_repository, api_repository, db_session):
     system1 = System(
         id=str(uuid.uuid4()),
         name="Source System",
+        system_code="SRC_SYS_004",
         description="Source Description",
         created_at=datetime.utcnow(),
         updated_at=datetime.utcnow()
@@ -236,6 +243,7 @@ def test_delete(relationship_repository, api_repository, db_session):
     system2 = System(
         id=str(uuid.uuid4()),
         name="Target System",
+        system_code="TGT_SYS_004",
         description="Target Description",
         created_at=datetime.utcnow(),
         updated_at=datetime.utcnow()

@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends, HTTPException, Query
+from fastapi import APIRouter, Depends, HTTPException, Query, Request
 from sqlalchemy.orm import Session
 from typing import List, Set
 import uuid
@@ -9,7 +9,10 @@ from apimgmt.services.api_service import ApiService
 from apimgmt.repositories.api_repository import ApiRepository
 from apimgmt.repositories.system_repository import SystemRepository
 from apimgmt.repositories.tag_repository import TagRepository
+from apimgmt.repositories.audit_repository import AuditLogRepository
+from apimgmt.services.audit_service import AuditLogService
 from apimgmt.exceptions import ResourceNotFoundException, ValidationException
+from apimgmt.dependencies.auth_dependency import get_current_user
 
 
 router = APIRouter()
@@ -20,12 +23,15 @@ def get_api_service(db: Session = Depends(get_db)) -> ApiService:
     api_repository = ApiRepository(db)
     system_repository = SystemRepository(db)
     tag_repository = TagRepository(db)
-    return ApiService(api_repository, system_repository, tag_repository)
+    audit_repository = AuditLogRepository(db)
+    audit_service = AuditLogService(audit_repository)
+    return ApiService(api_repository, system_repository, tag_repository, audit_service)
 
 
 @router.post("", response_model=ApiDTO, status_code=201)
 async def create_api(
     request: CreateApiRequest,
+    current_user = Depends(get_current_user),
     api_service: ApiService = Depends(get_api_service)
 ):
     """创建API"""
@@ -44,7 +50,7 @@ async def create_api(
 
 @router.get("", response_model=List[ApiDTO])
 async def get_apis(
-    system_id: uuid.UUID = Query(None, description="系统ID"),
+    system_id: str = Query(None, description="系统ID"),
     tags: Set[str] = Query(None, description="标签列表"),
     api_service: ApiService = Depends(get_api_service)
 ):
@@ -67,7 +73,7 @@ async def get_apis(
 
 @router.get("/search", response_model=List[ApiDTO])
 async def search_apis(
-    systemId: uuid.UUID = Query(None, description="系统ID"),
+    systemId: str = Query(None, description="系统ID"),
     tags: Set[str] = Query(None, description="标签列表"),
     api_service: ApiService = Depends(get_api_service)
 ):
@@ -90,7 +96,7 @@ async def search_apis(
 
 @router.get("/{api_id}", response_model=ApiDTO)
 async def get_api(
-    api_id: uuid.UUID,
+    api_id: str,
     api_service: ApiService = Depends(get_api_service)
 ):
     """根据ID获取API"""
@@ -107,8 +113,9 @@ async def get_api(
 
 @router.put("/{api_id}", response_model=ApiDTO)
 async def update_api(
-    api_id: uuid.UUID,
+    api_id: str,
     request: UpdateApiRequest,
+    current_user = Depends(get_current_user),
     api_service: ApiService = Depends(get_api_service)
 ):
     """更新API"""
@@ -127,7 +134,8 @@ async def update_api(
 
 @router.delete("/{api_id}", status_code=204)
 async def delete_api(
-    api_id: uuid.UUID,
+    api_id: str,
+    current_user = Depends(get_current_user),
     api_service: ApiService = Depends(get_api_service)
 ):
     """删除API"""

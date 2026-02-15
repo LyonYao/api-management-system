@@ -11,6 +11,9 @@ class RelationshipRepository:
     
     def create(self, relationship: Relationship) -> Relationship:
         """创建调用关系"""
+        # 确保id是字符串类型
+        if isinstance(relationship.id, uuid.UUID):
+            relationship.id = str(relationship.id)
         # 关系ID会在模型的默认值中设置，不需要在这里设置
         self.db.add(relationship)
         self.db.commit()
@@ -19,6 +22,9 @@ class RelationshipRepository:
     
     def find_by_id(self, relationship_id: Union[uuid.UUID, str]) -> Optional[Relationship]:
         """根据ID查找调用关系"""
+        # 确保将UUID转换为字符串
+        if isinstance(relationship_id, uuid.UUID):
+            relationship_id = str(relationship_id)
         return self.db.query(Relationship).filter(Relationship.id == relationship_id).first()
     
     def find_all(self) -> List[Relationship]:
@@ -27,6 +33,9 @@ class RelationshipRepository:
     
     def find_by_caller(self, caller_type: str, caller_id: Union[uuid.UUID, str]) -> List[Relationship]:
         """根据调用方查找调用关系"""
+        # 确保将UUID转换为字符串
+        if isinstance(caller_id, uuid.UUID):
+            caller_id = str(caller_id)
         return (
             self.db.query(Relationship)
             .filter(
@@ -38,6 +47,9 @@ class RelationshipRepository:
     
     def find_by_callee(self, callee_type: str, callee_id: Union[uuid.UUID, str]) -> List[Relationship]:
         """根据被调用方查找调用关系"""
+        # 确保将UUID转换为字符串
+        if isinstance(callee_id, uuid.UUID):
+            callee_id = str(callee_id)
         return (
             self.db.query(Relationship)
             .filter(
@@ -49,6 +61,9 @@ class RelationshipRepository:
     
     def update(self, relationship: Relationship) -> Optional[Relationship]:
         """更新调用关系"""
+        # 确保id是字符串类型
+        if isinstance(relationship.id, uuid.UUID):
+            relationship.id = str(relationship.id)
         existing_relationship = self.find_by_id(relationship.id)
         if existing_relationship:
             for key, value in relationship.__dict__.items():
