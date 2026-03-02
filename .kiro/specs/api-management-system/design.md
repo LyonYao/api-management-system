@@ -2,7 +2,7 @@
 
 ## 概述
 
-API管理系统是一个基于Python的微服务应用，使用FastAPI框架，使用PostgreSQL作为数据存储。系统提供RESTful API用于管理API元数据、调用关系，并支持拓扑图可视化和健康检查功能。
+API管理系统是一个基于Python的微服务应用，使用FastAPI框架，使用PostgreSQL作为数据存储。系统提供RESTful API用于管理API元数据、调用关系，支持拓扑图可视化和健康检查功能，并集成了认证和审计日志功能。
 
 ### 技术栈
 
@@ -13,6 +13,9 @@ API管理系统是一个基于Python的微服务应用，使用FastAPI框架，�
 - **构建工具**: pip
 - **数据访问**: SQLAlchemy ORM
 - **异步支持**: asyncio 和 httpx
+- **认证**: JWT (JSON Web Token)
+- **数据库迁移**: Alembic
+- **密码加密**: bcrypt
 
 ## 架构
 
@@ -33,6 +36,8 @@ API管理系统是一个基于Python的微服务应用，使用FastAPI框架，�
 │  - endpoint_router                  │
 │  - relationship_router              │
 │  - health_check_router              │
+│  - auth_router                      │
+│  - audit_router                      │
 └─────────────────────────────────────┘
                  │
 ┌─────────────────────────────────────┐
@@ -42,6 +47,8 @@ API管理系统是一个基于Python的微服务应用，使用FastAPI框架，�
 │  - EndpointService                  │
 │  - RelationshipService              │
 │  - HealthCheckService               │
+│  - AuthService                      │
+│  - AuditLogService                  │
 └─────────────────────────────────────┘
                  │
 ┌─────────────────────────────────────┐
@@ -52,6 +59,8 @@ API管理系统是一个基于Python的微服务应用，使用FastAPI框架，�
 │  - RelationshipRepository           │
 │  - TagRepository                    │
 │  - HealthCheckResultRepository      │
+│  - UserRepository                   │
+│  - AuditLogRepository               │
 └─────────────────────────────────────┘
                  │
 ┌─────────────────────────────────────┐
@@ -64,8 +73,9 @@ API管理系统是一个基于Python的微服务应用，使用FastAPI框架，�
 
 - 使用FastAPI内置的开发服务器或生产级服务器（如Gunicorn + Uvicorn）
 - SQLAlchemy ORM用于数据库访问，支持同步和异步操作
-- 环境变量配置数据库连接信息
+- 环境变量配置数据库连接信息和JWT密钥
 - 支持容器化部署（如Docker）
+- 支持数据库迁移管理（使用Alembic）
 
 ## 组件和接口
 
@@ -121,6 +131,22 @@ API管理系统是一个基于Python的微服务应用，使用FastAPI框架，�
 - `GET /api/v1/health/results/{endpoint_id}` - 获取端点的健康检查结果
 - `GET /api/v1/health/results` - 获取最近的健康检查结果
 
+#### auth_router
+负责用户认证
+
+**端点**:
+- `POST /api/v1/auth/login` - 用户登录
+- `POST /api/v1/auth/refresh` - 刷新访问令牌
+- `GET /api/v1/auth/me` - 获取当前用户信息
+
+#### audit_router
+负责审计日志管理
+
+**端点**:
+- `GET /api/v1/audit` - 获取审计日志列表（支持按操作类型、资源类型、用户名、时间范围等筛选）
+- `GET /api/v1/audit/{audit_id}` - 获取单个审计日志详情
+- `GET /api/v1/audit/resource/{resource_type}/{resource_id}` - 获取指定资源的审计日志
+
 #### OpenAPI文档
 FastAPI自动生成OpenAPI 3.0规格文档
 
@@ -158,6 +184,19 @@ FastAPI自动生成OpenAPI 3.0规格文档
 - 异步批量检查
 - 结果聚合和存储
 - 支持超时处理
+- 支持按环境执行健康检查
+
+#### AuthService
+- 用户认证和授权
+- JWT token生成和验证
+- 密码哈希和验证
+- 用户信息管理
+
+#### AuditLogService
+- 审计日志的创建和查询
+- 操作类型和资源类型管理
+- 支持按条件筛选审计日志
+- 与服务层其他组件的集成
 
 ### 3. Repository层
 
@@ -447,6 +486,97 @@ class HealthCheckResultRepository:
         return False
 ```
 
+#### UserRepository
+```python
+class UserRepository:
+    def __init__(self, db: Session):
+        self.db = db
+    
+    def create(self, user: User) -> User:
+        """创建用户"""
+        self.db.add(user)
+        self.db.commit()
+        self.db.refresh(user)
+        return user
+    
+    def find_by_id(self, user_id: Union[uuid.UUID, str]) -> Optional[User]:
+        """根据ID查找用户"""
+        return self.db.query(User).filter(User.id == user_id).first()
+    
+    def find_by_username(self, username: str) -> Optional[User]:
+        """根据用户名查找用户"""
+        return self.db.query(User).filter(User.username == username).first()
+    
+    def find_all(self) -> List[User]:
+        """查找所有用户"""
+        return self.db.query(User).all()
+    
+    def update(self, user: User) -> Optional[User]:
+        """更新用户"""
+        existing_user = self.find_by_id(user.id)
+        if existing_user:
+            for key, value in user.__dict__.items():
+                if key != '_sa_instance_state':
+                    setattr(existing_user, key, value)
+            self.db.commit()
+            self.db.refresh(existing_user)
+            return existing_user
+        return None
+    
+    def delete(self, user_id: Union[uuid.UUID, str]) -> bool:
+        """删除用户"""
+        user = self.find_by_id(user_id)
+        if user:
+            self.db.delete(user)
+            self.db.commit()
+            return True
+        return False
+```
+
+#### AuditLogRepository
+```python
+class AuditLogRepository:
+    def __init__(self, db: Session):
+        self.db = db
+    
+    def create(self, audit_log: AuditLog) -> AuditLog:
+        """创建审计日志"""
+        self.db.add(audit_log)
+        self.db.commit()
+        self.db.refresh(audit_log)
+        return audit_log
+    
+    def find_by_id(self, audit_id: Union[uuid.UUID, str]) -> Optional[AuditLog]:
+        """根据ID查找审计日志"""
+        return self.db.query(AuditLog).filter(AuditLog.id == audit_id).first()
+    
+    def find_all(self, operation_type: Optional[str] = None, resource_type: Optional[str] = None, 
+                 username: Optional[str] = None, start_date: Optional[datetime] = None, 
+                 end_date: Optional[datetime] = None, skip: int = 0, limit: int = 100) -> List[AuditLog]:
+        """根据条件查找审计日志"""
+        query = self.db.query(AuditLog)
+        
+        if operation_type:
+            query = query.filter(AuditLog.operation_type == operation_type)
+        if resource_type:
+            query = query.filter(AuditLog.resource_type == resource_type)
+        if username:
+            query = query.filter(AuditLog.username == username)
+        if start_date:
+            query = query.filter(AuditLog.timestamp >= start_date)
+        if end_date:
+            query = query.filter(AuditLog.timestamp <= end_date)
+        
+        return query.order_by(desc(AuditLog.timestamp)).offset(skip).limit(limit).all()
+    
+    def find_by_resource(self, resource_type: str, resource_id: Union[uuid.UUID, str]) -> List[AuditLog]:
+        """查找指定资源的审计日志"""
+        return self.db.query(AuditLog).filter(
+            AuditLog.resource_type == resource_type,
+            AuditLog.resource_id == resource_id
+        ).order_by(desc(AuditLog.timestamp)).all()
+```
+
 ## 数据模型
 
 ### 实体关系图
@@ -460,6 +590,7 @@ erDiagram
     ENDPOINT }o--o{ RELATIONSHIP : participates
     SYSTEM }o--o{ RELATIONSHIP : participates
     RELATIONSHIP ||--o| HEALTH_CHECK_RESULT : has
+    USER ||--o{ AUDIT_LOG : generates
 
     SYSTEM {
         string id PK
@@ -535,6 +666,27 @@ erDiagram
         int response_time_ms
         text error_message
         timestamp checked_at
+    }
+
+    USER {
+        string id PK
+        string username UK
+        string password_hash
+        string email
+        string role
+        timestamp created_at
+        timestamp updated_at
+    }
+
+    AUDIT_LOG {
+        string id PK
+        string username
+        string operation_type
+        string resource_type
+        string resource_id
+        json before_data
+        json after_data
+        timestamp timestamp
     }
 ```
 
@@ -662,6 +814,41 @@ CREATE INDEX idx_health_check_results_api_id ON health_check_results(api_id);
 CREATE INDEX idx_health_check_results_system_id ON health_check_results(system_id);
 CREATE INDEX idx_health_check_results_checked_at ON health_check_results(checked_at);
 CREATE INDEX idx_health_check_results_endpoint_id ON health_check_results(endpoint_id);
+```
+
+#### users表
+```sql
+CREATE TABLE users (
+    id VARCHAR(36) PRIMARY KEY,
+    username VARCHAR(100) NOT NULL UNIQUE,
+    password_hash VARCHAR(255) NOT NULL,
+    email VARCHAR(255) NOT NULL UNIQUE,
+    role VARCHAR(50) NOT NULL DEFAULT 'USER',
+    created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE INDEX idx_users_username ON users(username);
+CREATE INDEX idx_users_email ON users(email);
+```
+
+#### audit_logs表
+```sql
+CREATE TABLE audit_logs (
+    id VARCHAR(36) PRIMARY KEY,
+    username VARCHAR(100) NOT NULL,
+    operation_type VARCHAR(50) NOT NULL,
+    resource_type VARCHAR(50) NOT NULL,
+    resource_id VARCHAR(36),
+    before_data JSONB,
+    after_data JSONB,
+    timestamp TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE INDEX idx_audit_logs_username ON audit_logs(username);
+CREATE INDEX idx_audit_logs_timestamp ON audit_logs(timestamp);
+CREATE INDEX idx_audit_logs_resource ON audit_logs(resource_type, resource_id);
+CREATE INDEX idx_audit_logs_operation ON audit_logs(operation_type);
 ```
 
 ### Python实体类（SQLAlchemy模型）
@@ -837,6 +1024,45 @@ class HealthCheckResult(Base):
     endpoint = relationship("Endpoint", back_populates="health_check_results")
 ```
 
+#### User
+```python
+from sqlalchemy import Column, String, Text, DateTime
+from sqlalchemy.sql import func
+import uuid
+from ..database import Base
+
+class User(Base):
+    __tablename__ = "users"
+    
+    id = Column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
+    username = Column(String(100), nullable=False, unique=True)
+    password_hash = Column(String(255), nullable=False)
+    email = Column(String(255), nullable=False, unique=True)
+    role = Column(String(50), nullable=False, default="USER")
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
+    updated_at = Column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())
+```
+
+#### AuditLog
+```python
+from sqlalchemy import Column, String, Text, DateTime, JSON
+from sqlalchemy.sql import func
+import uuid
+from ..database import Base
+
+class AuditLog(Base):
+    __tablename__ = "audit_logs"
+    
+    id = Column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
+    username = Column(String(100), nullable=False)
+    operation_type = Column(String(50), nullable=False)
+    resource_type = Column(String(50), nullable=False)
+    resource_id = Column(String(36), nullable=True)
+    before_data = Column(JSON, nullable=True)
+    after_data = Column(JSON, nullable=True)
+    timestamp = Column(DateTime(timezone=True), server_default=func.now())
+```
+
 ### 枚举类型
 
 ```python
@@ -866,6 +1092,23 @@ class HealthCheckStatus(str, Enum):
     SUCCESS = "SUCCESS"
     FAILURE = "FAILURE"
     TIMEOUT = "TIMEOUT"
+
+class UserRole(str, Enum):
+    ADMIN = "ADMIN"
+    USER = "USER"
+
+class OperationType(str, Enum):
+    CREATE = "CREATE"
+    UPDATE = "UPDATE"
+    DELETE = "DELETE"
+    READ = "READ"
+
+class ResourceType(str, Enum):
+    SYSTEM = "SYSTEM"
+    API = "API"
+    ENDPOINT = "ENDPOINT"
+    RELATIONSHIP = "RELATIONSHIP"
+    USER = "USER"
 ```
 
 ## API规格 (OpenAPI 3.0)
@@ -1058,6 +1301,58 @@ class BatchHealthCheckResponse(BaseModel):
     total_count: int
     success_count: int
     failure_count: int
+
+#### Auth DTOs
+
+class LoginRequest(BaseModel):
+    username: str
+    password: str
+
+class TokenResponse(BaseModel):
+    access_token: str
+    token_type: str
+    expires_in: int
+    user_id: str
+    username: str
+    role: str
+
+class RefreshTokenRequest(BaseModel):
+    refresh_token: str
+
+class UserInfoDTO(BaseModel):
+    id: str
+    username: str
+    email: str
+    role: str
+    created_at: datetime
+    updated_at: datetime
+    
+    class Config:
+        from_attributes = True
+
+#### Audit Log DTOs
+
+class AuditLogDTO(BaseModel):
+    id: str
+    username: str
+    operation_type: str
+    resource_type: str
+    resource_id: Optional[str] = None
+    before_data: Optional[Dict[str, Any]] = None
+    after_data: Optional[Dict[str, Any]] = None
+    timestamp: datetime
+    
+    class Config:
+        from_attributes = True
+
+class AuditLogQueryParams(BaseModel):
+    operation_type: Optional[str] = None
+    resource_type: Optional[str] = None
+    username: Optional[str] = None
+    start_date: Optional[datetime] = None
+    end_date: Optional[datetime] = None
+    skip: int = 0
+    limit: int = 100
 ```
 
 ### OpenAPI规格文档结构
@@ -1201,6 +1496,15 @@ CORS_ORIGINS=http://localhost:3000,http://localhost:8080
 
 # 健康检查配置
 HEALTH_CHECK_TIMEOUT=30
+
+# JWT配置
+SECRET_KEY=your-secret-key-here
+ACCESS_TOKEN_EXPIRE_MINUTES=480  # 8小时
+REFRESH_TOKEN_EXPIRE_MINUTES=1440  # 24小时
+ALGORITHM=HS256
+
+# 认证配置
+AUTH_REQUIRED=True
 ```
 
 ### 应用配置 (config.py)
@@ -1226,6 +1530,15 @@ class Settings(BaseSettings):
     # 健康检查配置
     health_check_timeout: int = int(os.getenv("HEALTH_CHECK_TIMEOUT", "30"))
     
+    # JWT配置
+    secret_key: str = os.getenv("SECRET_KEY", "your-secret-key-here")
+    access_token_expire_minutes: int = int(os.getenv("ACCESS_TOKEN_EXPIRE_MINUTES", "480"))
+    refresh_token_expire_minutes: int = int(os.getenv("REFRESH_TOKEN_EXPIRE_MINUTES", "1440"))
+    algorithm: str = os.getenv("ALGORITHM", "HS256")
+    
+    # 认证配置
+    auth_required: bool = os.getenv("AUTH_REQUIRED", "True").lower() == "true"
+    
     class Config:
         env_file = ".env"
 
@@ -1242,6 +1555,11 @@ settings = Settings()
   - `DATABASE_PASSWORD`
   - `APP_NAME`
   - `APP_VERSION`
+  - `SECRET_KEY`
+  - `ACCESS_TOKEN_EXPIRE_MINUTES`
+  - `REFRESH_TOKEN_EXPIRE_MINUTES`
+  - `ALGORITHM`
+  - `AUTH_REQUIRED`
 - VPC配置：连接到RDS所在VPC
 
 ### 数据库迁移
@@ -1253,7 +1571,7 @@ settings = Settings()
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
 from apimgmt.database import Base
-from apimgmt.models import System, Api, Endpoint, Tag, Relationship, HealthCheckResult
+from apimgmt.models import System, Api, Endpoint, Tag, Relationship, HealthCheckResult, User, AuditLog
 
 # 创建引擎
 engine = create_engine(settings.database_url)
@@ -1269,7 +1587,7 @@ Base.metadata.create_all(bind=engine)
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from apimgmt.config import settings
-from apimgmt.routers import api_router, system_router, endpoint_router, relationship_router, health_check_router
+from apimgmt.routers import api_router, system_router, endpoint_router, relationship_router, health_check_router, auth_router, audit_router
 from apimgmt.database import engine, Base
 
 # 创建数据库表
@@ -1297,6 +1615,8 @@ app.include_router(system_router, prefix="/api/v1")
 app.include_router(endpoint_router, prefix="/api/v1")
 app.include_router(relationship_router, prefix="/api/v1")
 app.include_router(health_check_router, prefix="/api/v1")
+app.include_router(auth_router, prefix="/api/v1")
+app.include_router(audit_router, prefix="/api/v1")
 
 # 根路径
 @app.get("/")

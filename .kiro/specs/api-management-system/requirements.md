@@ -16,6 +16,8 @@ API管理系统是一个用于管理公司微服务架构下各系统API的平�
 - **健康检查 (Health Check)**: 对API endpoint的可用性验证请求
 - **API标签 (API Tag)**: 用于分类API类型的标记
 - **API规格链接 (API Spec Link)**: 指向API详细规格文档的URL
+- **审计日志 (Audit Log)**: 记录系统中所有操作的日志，包括操作类型、资源类型、操作人等信息
+- **JWT Token**: 用于认证的JSON Web Token，包含用户信息和过期时间
 
 ## 需求
 
@@ -31,6 +33,8 @@ API管理系统是一个用于管理公司微服务架构下各系统API的平�
 4. THE API管理系统 SHALL 允许用户为API实体添加多个标签
 5. THE API管理系统 SHALL 允许用户为API实体关联API规格文档链接
 6. THE API管理系统 SHALL 为每个API实体存储认证方式类型包括API Key、OAuth2、Basic Auth、JWT或无认证
+7. THE API管理系统 SHALL 为每个API实体存储开发、测试和生产环境的Host地址
+8. THE API管理系统 SHALL 为每个API实体存储健康检查路径和规则
 
 ### 需求 2
 
@@ -69,6 +73,8 @@ API管理系统是一个用于管理公司微服务架构下各系统API的平�
 4. WHEN 执行健康检查时，THE API管理系统 SHALL 向每个API的endpoint发送HTTP请求
 5. THE API管理系统 SHALL 显示每个API的健康检查结果包括响应状态码和响应时间
 6. WHEN 健康检查失败时，THE API管理系统 SHALL 在结果中标记失败的API
+7. THE API管理系统 SHALL 支持按环境（开发、测试、生产）执行健康检查
+8. THE API管理系统 SHALL 存储健康检查结果，支持历史查询
 
 ### 需求 5
 
@@ -109,6 +115,7 @@ API管理系统是一个用于管理公司微服务架构下各系统API的平�
 6. WHEN 被调用方类型为API时，THE API管理系统 SHALL 存储API实体引用
 7. THE API管理系统 SHALL 为每个调用关系存储该调用使用的认证方式
 8. THE API管理系统 SHALL 支持系统到系统、系统到API、API到系统、API到API四种调用关系类型
+9. THE API管理系统 SHALL 为每个调用关系存储认证配置信息
 
 ### 需求 8
 
@@ -116,11 +123,10 @@ API管理系统是一个用于管理公司微服务架构下各系统API的平�
 
 #### 验收标准
 
-1. THE API管理系统 SHALL 使用Java云原生框架实现快速启动
-2. THE API管理系统 SHALL 在AWS Lambda环境中运行
-3. THE API管理系统 SHALL 使用PostgreSQL数据库存储所有数据
-4. THE API管理系统 SHALL 在Lambda冷启动时在3秒内完成初始化
-5. THE API管理系统 SHALL 对单个API查询请求在500毫秒内返回响应
+1. THE API管理系统 SHALL 使用Python FastAPI框架实现快速启动
+2. THE API管理系统 SHALL 使用PostgreSQL数据库存储所有数据
+3. THE API管理系统 SHALL 对单个API查询请求在500毫秒内返回响应
+4. THE API管理系统 SHALL 支持异步处理健康检查请求，提高并发性能
 
 ### 需求 9
 
@@ -133,3 +139,50 @@ API管理系统是一个用于管理公司微服务架构下各系统API的平�
 3. THE OpenAPI规格文档 SHALL 定义所有请求和响应的数据模型
 4. THE OpenAPI规格文档 SHALL 包含每个端点的认证要求说明
 5. THE API管理系统 SHALL 通过专用端点提供OpenAPI规格文档的JSON格式访问
+
+### 需求 10
+
+**用户故事:** 作为系统管理员，我希望系统能够记录所有操作的审计日志，以便追踪和审计系统使用情况
+
+#### 验收标准
+
+1. THE API管理系统 SHALL 记录所有资源的创建、更新、删除操作
+2. THE 审计日志 SHALL 包含操作类型、资源类型、资源ID、操作人、操作时间等信息
+3. THE API管理系统 SHALL 提供审计日志查询接口，支持按操作类型、资源类型、操作人、时间范围等条件筛选
+4. THE API管理系统 SHALL 支持审计日志分页查询
+
+### 需求 11
+
+**用户故事:** 作为系统管理员，我希望系统能够提供JWT认证，以便保护API访问安全
+
+#### 验收标准
+
+1. THE API管理系统 SHALL 实现基于JWT的认证机制
+2. THE API管理系统 SHALL 允许用户通过登录接口获取JWT token
+3. THE API管理系统 SHALL 验证所有受保护API端点的JWT token
+4. THE API管理系统 SHALL 支持token过期时间配置，默认8小时
+5. THE API管理系统 SHALL 提供token刷新机制
+
+### 需求 12
+
+**用户故事:** 作为系统管理员，我希望系统能够支持数据库迁移，以便管理数据库 schema 变更
+
+#### 验收标准
+
+1. THE API管理系统 SHALL 使用Alembic进行数据库迁移管理
+2. THE API管理系统 SHALL 支持创建、应用和回滚数据库迁移
+3. THE API管理系统 SHALL 提供迁移脚本生成工具
+
+### 需求 13
+
+**用户故事:** 作为系统管理员，我希望能够管理系统用户，以便控制系统访问权限
+
+#### 验收标准
+
+1. THE API管理系统 SHALL 允许系统管理员创建用户账号
+2. THE API管理系统 SHALL 存储用户的用户名、密码哈希、邮箱和角色信息
+3. THE API管理系统 SHALL 支持用户密码加密存储
+4. THE API管理系统 SHALL 允许系统管理员修改和删除用户账号
+5. THE API管理系统 SHALL 支持用户角色管理，包括ADMIN和USER角色
+6. THE API管理系统 SHALL 允许系统管理员查询用户列表
+
