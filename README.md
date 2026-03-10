@@ -150,6 +150,17 @@ pytest tests/repositories/test_api_repository.py
 - `GET /api/v1/health/results/{endpoint_id}` - Get health check results
 - `GET /api/v1/health/results` - Get all health check results
 
+### Test Management
+- `POST /api/v1/tests` - Create test case
+- `GET /api/v1/tests/endpoint/{endpoint_id}` - Get endpoint test cases
+- `GET /api/v1/tests/{test_id}` - Get test case details
+- `PUT /api/v1/tests/{test_id}` - Update test case
+- `DELETE /api/v1/tests/{test_id}` - Delete test case
+- `POST /api/v1/tests/api/{api_id}/run` - Run API tests
+- `GET /api/v1/tests/results/system/{system_id}` - Get system test results
+- `GET /api/v1/tests/results/api/{api_id}` - Get API test results
+- `POST /api/v1/tests/trends` - Get test trends
+
 ## Audit Logging
 
 ### Overview
@@ -238,6 +249,58 @@ set ACCESS_TOKEN_EXPIRE_MINUTES=240
 # On Linux/macOS
 export ACCESS_TOKEN_EXPIRE_MINUTES=240
 ```
+
+## Test Management
+
+### Test Validation Rules
+
+The API Management System supports comprehensive test validation rules, including regular expression matching for flexible testing.
+
+#### Basic Validation Rules
+
+```json
+{
+  "status_code": 200,
+  "response_body": {
+    "status": "healthy",
+    "service": "api-management-system"
+  }
+}
+```
+
+#### Regular Expression Support
+
+You can use regular expressions to match string values in the response body:
+
+```json
+{
+  "status_code": 200,
+  "response_body": {
+    "status": "healthy",
+    "service": {
+      "$regex": "api-management-.*"
+    },
+    "version": {
+      "$regex": "^\\d+\\.\\d+\\.\\d+$
+    }
+  }
+}
+```
+
+#### Using Regular Expressions
+
+To use regular expressions in validation rules:
+
+1. For any string field in the response body, replace the direct value with an object containing the `$regex` key
+2. The value of `$regex` should be a valid regular expression pattern
+3. The system will use Python's `re.match()` function to validate the field
+
+#### Example Use Cases
+
+- **Matching version numbers**: `"$regex": "^\\d+\\.\\d+\\.\\d+$
+- **Matching UUIDs**: `"$regex": "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$"
+- **Matching email addresses**: `"$regex": "^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\\.[a-zA-Z]{2,}$"
+- **Matching date formats**: `"$regex": "^\\d{4}-\\d{2}-\\d{2}$"
 
 ## Database Migration
 

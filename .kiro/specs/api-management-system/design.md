@@ -38,6 +38,7 @@ API管理系统是一个基于Python的微服务应用，使用FastAPI框架，�
 │  - health_check_router              │
 │  - auth_router                      │
 │  - audit_router                      │
+│  - test_router                      │
 └─────────────────────────────────────┘
                  │
 ┌─────────────────────────────────────┐
@@ -49,6 +50,7 @@ API管理系统是一个基于Python的微服务应用，使用FastAPI框架，�
 │  - HealthCheckService               │
 │  - AuthService                      │
 │  - AuditLogService                  │
+│  - TestService                      │
 └─────────────────────────────────────┘
                  │
 ┌─────────────────────────────────────┐
@@ -61,6 +63,8 @@ API管理系统是一个基于Python的微服务应用，使用FastAPI框架，�
 │  - HealthCheckResultRepository      │
 │  - UserRepository                   │
 │  - AuditLogRepository               │
+│  - EndpointTestRepository           │
+│  - TestResultRepository             │
 └─────────────────────────────────────┘
                  │
 ┌─────────────────────────────────────┐
@@ -147,6 +151,22 @@ API管理系统是一个基于Python的微服务应用，使用FastAPI框架，�
 - `GET /api/v1/audit/{audit_id}` - 获取单个审计日志详情
 - `GET /api/v1/audit/resource/{resource_type}/{resource_id}` - 获取指定资源的审计日志
 
+#### test_router
+负责测试用例管理和执行
+
+**端点**:
+- `POST /api/v1/tests` - 创建测试用例
+- `GET /api/v1/tests/{test_id}` - 获取测试用例详情
+- `PUT /api/v1/tests/{test_id}` - 更新测试用例
+- `DELETE /api/v1/tests/{test_id}` - 删除测试用例
+- `GET /api/v1/tests` - 查询测试用例列表（支持按Endpoint ID和环境筛选）
+- `POST /api/v1/tests/run/api/{api_id}` - 执行指定API的所有测试用例（支持按环境筛选）
+- `POST /api/v1/tests/run/endpoint/{endpoint_id}` - 执行指定Endpoint的所有测试用例（支持按环境筛选）
+- `GET /api/v1/tests/results` - 查询测试执行结果（支持按系统、API、环境、执行时间范围筛选）
+- `GET /api/v1/tests/results/{result_id}` - 获取测试执行结果详情
+- `GET /api/v1/tests/results/system/{system_id}` - 查询指定系统的测试批次列表
+- `GET /api/v1/tests/results/batch/{batch_id}` - 查询指定批次的测试执行结果
+
 #### OpenAPI文档
 FastAPI自动生成OpenAPI 3.0规格文档
 
@@ -197,6 +217,19 @@ FastAPI自动生成OpenAPI 3.0规格文档
 - 操作类型和资源类型管理
 - 支持按条件筛选审计日志
 - 与服务层其他组件的集成
+
+#### TestService
+- 测试用例的创建、更新、删除和查询
+- 测试用例执行和结果评估
+- 支持批量执行测试用例
+- 测试执行结果的存储和查询
+- 与API和Endpoint服务的集成
+- 批次号生成和管理
+- 测试执行历史趋势分析
+- 测试批次管理（创建、查询、更新）
+- 后台测试执行
+- 并发测试执行限制
+- 测试执行统计和状态更新
 
 ### 3. Repository层
 
@@ -577,6 +610,180 @@ class AuditLogRepository:
         ).order_by(desc(AuditLog.timestamp)).all()
 ```
 
+#### EndpointTestRepository
+```python
+class EndpointTestRepository:
+    def __init__(self, db: Session):
+        self.db = db
+    
+    def create(self, test: EndpointTest) -> EndpointTest:
+        """创建测试用例"""
+        self.db.add(test)
+        self.db.commit()
+        self.db.refresh(test)
+        return test
+    
+    def find_by_id(self, test_id: Union[uuid.UUID, str]) -> Optional[EndpointTest]:
+        """根据ID查找测试用例"""
+        return self.db.query(EndpointTest).filter(EndpointTest.id == test_id).first()
+    
+    def find_by_endpoint_id(self, endpoint_id: Union[uuid.UUID, str], environment: Optional[str] = None) -> List[EndpointTest]:
+        """根据Endpoint ID查找测试用例"""
+        query = self.db.query(EndpointTest).filter(EndpointTest.endpoint_id == endpoint_id)
+        if environment:
+            query = query.filter(EndpointTest.environment == environment)
+        return query.all()
+    
+    def find_all(self, skip: int = 0, limit: int = 100) -> List[EndpointTest]:
+        """查找所有测试用例"""
+        return self.db.query(EndpointTest).offset(skip).limit(limit).all()
+    
+    def update(self, test: EndpointTest) -> Optional[EndpointTest]:
+        """更新测试用例"""
+        existing_test = self.find_by_id(test.id)
+        if existing_test:
+            for key, value in test.__dict__.items():
+                if key != '_sa_instance_state':
+                    setattr(existing_test, key, value)
+            self.db.commit()
+            self.db.refresh(existing_test)
+            return existing_test
+        return None
+    
+    def delete(self, test_id: Union[uuid.UUID, str]) -> bool:
+        """删除测试用例"""
+        test = self.find_by_id(test_id)
+        if test:
+            self.db.delete(test)
+            self.db.commit()
+            return True
+        return False
+```
+
+#### TestResultRepository
+```python
+class TestResultRepository:
+    def __init__(self, db: Session):
+        self.db = db
+    
+    def create(self, test_result: TestResult) -> TestResult:
+        """创建测试执行结果"""
+        self.db.add(test_result)
+        self.db.commit()
+        self.db.refresh(test_result)
+        return test_result
+    
+    def find_by_id(self, result_id: Union[uuid.UUID, str]) -> Optional[TestResult]:
+        """根据ID查找测试执行结果"""
+        return self.db.query(TestResult).filter(TestResult.id == result_id).first()
+    
+    def find_by_test_id(self, test_id: Union[uuid.UUID, str]) -> List[TestResult]:
+        """根据测试用例ID查找测试执行结果"""
+        return self.db.query(TestResult).filter(TestResult.test_id == test_id).order_by(desc(TestResult.executed_at)).all()
+    
+    def find_by_endpoint_id(self, endpoint_id: Union[uuid.UUID, str]) -> List[TestResult]:
+        """根据Endpoint ID查找测试执行结果"""
+        return self.db.query(TestResult).join(EndpointTest).filter(EndpointTest.endpoint_id == endpoint_id).order_by(desc(TestResult.executed_at)).all()
+    
+    def find_by_api_id(self, api_id: Union[uuid.UUID, str]) -> List[TestResult]:
+        """根据API ID查找测试执行结果"""
+        return self.db.query(TestResult).join(EndpointTest).join(Endpoint).filter(Endpoint.api_id == api_id).order_by(desc(TestResult.executed_at)).all()
+    
+    def find_by_system_id(self, system_id: Union[uuid.UUID, str]) -> List[TestResult]:
+        """根据系统ID查找测试执行结果"""
+        return self.db.query(TestResult).join(EndpointTest).join(Endpoint).join(Api).filter(Api.system_id == system_id).order_by(desc(TestResult.executed_at)).all()
+    
+    def find_by_batch_id(self, batch_id: str) -> List[TestResult]:
+        """根据批次ID查找测试执行结果"""
+        return self.db.query(TestResult).filter(TestResult.batch_id == batch_id).order_by(desc(TestResult.executed_at)).all()
+    
+    def find_all(self, system_id: Optional[Union[uuid.UUID, str]] = None, 
+                 api_id: Optional[Union[uuid.UUID, str]] = None, 
+                 environment: Optional[str] = None,
+                 batch_id: Optional[str] = None,
+                 start_date: Optional[datetime] = None, 
+                 end_date: Optional[datetime] = None, 
+                 status: Optional[str] = None, 
+                 skip: int = 0, limit: int = 100) -> List[TestResult]:
+        """根据条件查找测试执行结果"""
+        query = self.db.query(TestResult).join(EndpointTest).join(Endpoint).join(Api)
+        
+        if system_id:
+            query = query.filter(Api.system_id == system_id)
+        if api_id:
+            query = query.filter(Endpoint.api_id == api_id)
+        if environment:
+            query = query.filter(TestResult.environment == environment)
+        if batch_id:
+            query = query.filter(TestResult.batch_id == batch_id)
+        if start_date:
+            query = query.filter(TestResult.executed_at >= start_date)
+        if end_date:
+            query = query.filter(TestResult.executed_at <= end_date)
+        if status:
+            query = query.filter(TestResult.status == status)
+        
+        return query.order_by(desc(TestResult.executed_at)).offset(skip).limit(limit).all()
+```
+
+#### TestBatchRepository
+```python
+class TestBatchRepository:
+    def __init__(self, db: Session):
+        self.db = db
+    
+    def create(self, test_batch: TestBatch) -> TestBatch:
+        """创建测试批次"""
+        self.db.add(test_batch)
+        self.db.commit()
+        self.db.refresh(test_batch)
+        return test_batch
+    
+    def find_by_id(self, batch_id: str) -> Optional[TestBatch]:
+        """根据批次ID查找测试批次"""
+        return self.db.query(TestBatch).filter(TestBatch.batch_id == batch_id).first()
+    
+    def find_by_system_id(self, system_id: Union[str, bytes]) -> List[TestBatch]:
+        """根据系统ID查找测试批次"""
+        return self.db.query(TestBatch).filter(TestBatch.system_id == system_id).order_by(desc(TestBatch.start_time)).all()
+    
+    def find_by_api_id(self, api_id: Union[str, bytes]) -> List[TestBatch]:
+        """根据API ID查找测试批次"""
+        return self.db.query(TestBatch).filter(TestBatch.api_id == api_id).order_by(desc(TestBatch.start_time)).all()
+    
+    def find_all(self, system_id: Optional[Union[str, bytes]] = None,
+                 api_id: Optional[Union[str, bytes]] = None,
+                 environment: Optional[str] = None,
+                 skip: int = 0, limit: int = 100) -> List[TestBatch]:
+        """查找所有测试批次"""
+        query = self.db.query(TestBatch)
+        
+        if system_id:
+            query = query.filter(TestBatch.system_id == system_id)
+        if api_id:
+            query = query.filter(TestBatch.api_id == api_id)
+        if environment:
+            query = query.filter(TestBatch.environment == environment)
+        
+        return query.order_by(desc(TestBatch.start_time)).offset(skip).limit(limit).all()
+    
+    def update(self, test_batch: TestBatch) -> TestBatch:
+        """更新测试批次"""
+        self.db.add(test_batch)
+        self.db.commit()
+        self.db.refresh(test_batch)
+        return test_batch
+    
+    def delete(self, batch_id: str) -> bool:
+        """删除测试批次"""
+        batch = self.find_by_id(batch_id)
+        if not batch:
+            return False
+        self.db.delete(batch)
+        self.db.commit()
+        return True
+```
+
 ## 数据模型
 
 ### 实体关系图
@@ -591,6 +798,9 @@ erDiagram
     SYSTEM }o--o{ RELATIONSHIP : participates
     RELATIONSHIP ||--o| HEALTH_CHECK_RESULT : has
     USER ||--o{ AUDIT_LOG : generates
+    ENDPOINT ||--o{ ENDPOINT_TEST : has
+    ENDPOINT_TEST ||--o{ TEST_RESULT : generates
+    TEST_BATCH ||--o{ TEST_RESULT : contains
 
     SYSTEM {
         string id PK
@@ -687,6 +897,56 @@ erDiagram
         json before_data
         json after_data
         timestamp timestamp
+    }
+
+    ENDPOINT_TEST {
+        string id PK
+        string endpoint_id FK
+        string name
+        string description
+        string environment
+        json headers
+        json request_body
+        json expected_response
+        json validation_rules
+        timestamp created_at
+        timestamp updated_at
+    }
+
+    TEST_BATCH {
+        string id PK
+        string batch_id UK
+        string system_id FK
+        string api_id FK
+        string environment
+        int total_count
+        int pass_count
+        int fail_count
+        int error_count
+        timestamp start_time
+        timestamp end_time
+        string status
+    }
+
+    TEST_RESULT {
+        string id PK
+        string test_id FK
+        string endpoint_id FK
+        string api_id FK
+        string system_id FK
+        string batch_id FK
+        string environment
+        string status
+        int response_code
+        int response_time_ms
+        json request_headers
+        json request_body
+        json response_body
+        json validation_rules
+        string error_message
+        string request_url
+        string api_url
+        timestamp executed_at
     }
 ```
 
@@ -849,6 +1109,81 @@ CREATE INDEX idx_audit_logs_username ON audit_logs(username);
 CREATE INDEX idx_audit_logs_timestamp ON audit_logs(timestamp);
 CREATE INDEX idx_audit_logs_resource ON audit_logs(resource_type, resource_id);
 CREATE INDEX idx_audit_logs_operation ON audit_logs(operation_type);
+```
+
+#### endpoint_tests表
+```sql
+CREATE TABLE endpoint_tests (
+    id VARCHAR(36) PRIMARY KEY,
+    endpoint_id VARCHAR(36) NOT NULL REFERENCES endpoints(id) ON DELETE CASCADE,
+    name VARCHAR(255) NOT NULL,
+    description VARCHAR(300),
+    environment VARCHAR(50) NOT NULL DEFAULT 'dev',
+    headers JSONB,
+    request_body JSONB,
+    expected_response JSONB,
+    validation_rules JSONB,
+    created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE INDEX idx_endpoint_tests_endpoint_id ON endpoint_tests(endpoint_id);
+CREATE INDEX idx_endpoint_tests_name ON endpoint_tests(name);
+```
+
+#### test_batches表
+```sql
+CREATE TABLE test_batches (
+    id VARCHAR(36) PRIMARY KEY,
+    batch_id VARCHAR(50) UNIQUE NOT NULL,
+    system_id VARCHAR(36) NOT NULL REFERENCES systems(id) ON DELETE CASCADE,
+    api_id VARCHAR(36) REFERENCES apis(id) ON DELETE CASCADE,
+    environment VARCHAR(50) NOT NULL,
+    total_count INTEGER NOT NULL DEFAULT 0,
+    pass_count INTEGER NOT NULL DEFAULT 0,
+    fail_count INTEGER NOT NULL DEFAULT 0,
+    error_count INTEGER NOT NULL DEFAULT 0,
+    start_time TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    end_time TIMESTAMP,
+    status VARCHAR(50) NOT NULL DEFAULT 'RUNNING'
+);
+
+CREATE INDEX idx_test_batches_batch_id ON test_batches(batch_id);
+CREATE INDEX idx_test_batches_system_id ON test_batches(system_id);
+CREATE INDEX idx_test_batches_api_id ON test_batches(api_id);
+CREATE INDEX idx_test_batches_start_time ON test_batches(start_time);
+```
+
+#### test_results表
+```sql
+CREATE TABLE test_results (
+    id VARCHAR(36) PRIMARY KEY,
+    test_id VARCHAR(36) NOT NULL REFERENCES endpoint_tests(id) ON DELETE CASCADE,
+    endpoint_id VARCHAR(36) NOT NULL REFERENCES endpoints(id) ON DELETE CASCADE,
+    api_id VARCHAR(36) NOT NULL REFERENCES apis(id) ON DELETE CASCADE,
+    system_id VARCHAR(36) NOT NULL REFERENCES systems(id) ON DELETE CASCADE,
+    batch_id VARCHAR(50) NOT NULL REFERENCES test_batches(batch_id) ON DELETE CASCADE,
+    environment VARCHAR(50) NOT NULL,
+    status VARCHAR(50) NOT NULL,
+    response_code INT,
+    response_time_ms INT,
+    request_headers JSONB,
+    request_body JSONB,
+    response_body JSONB,
+    validation_rules JSONB,
+    error_message VARCHAR(500),
+    request_url VARCHAR(500),
+    api_url VARCHAR(500),
+    executed_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE INDEX idx_test_results_test_id ON test_results(test_id);
+CREATE INDEX idx_test_results_endpoint_id ON test_results(endpoint_id);
+CREATE INDEX idx_test_results_api_id ON test_results(api_id);
+CREATE INDEX idx_test_results_system_id ON test_results(system_id);
+CREATE INDEX idx_test_results_batch_id ON test_results(batch_id);
+CREATE INDEX idx_test_results_status ON test_results(status);
+CREATE INDEX idx_test_results_executed_at ON test_results(executed_at);
 ```
 
 ### Python实体类（SQLAlchemy模型）
@@ -1063,6 +1398,102 @@ class AuditLog(Base):
     timestamp = Column(DateTime(timezone=True), server_default=func.now())
 ```
 
+#### EndpointTest
+```python
+from sqlalchemy import Column, String, DateTime, ForeignKey, JSON
+from sqlalchemy.sql import func
+from sqlalchemy.orm import relationship
+import uuid
+from ..database import Base
+
+class EndpointTest(Base):
+    __tablename__ = "endpoint_tests"
+    
+    id = Column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
+    endpoint_id = Column(String(36), ForeignKey("endpoints.id"), nullable=False)
+    name = Column(String(255), nullable=False)
+    description = Column(String(300), nullable=True)
+    environment = Column(String(50), nullable=False, default="dev")
+    headers = Column(JSON, nullable=True)
+    request_body = Column(JSON, nullable=True)
+    expected_response = Column(JSON, nullable=True)
+    validation_rules = Column(JSON, nullable=True)
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
+    updated_at = Column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())
+    
+    # Relationships
+    endpoint = relationship("Endpoint", backref="endpoint_tests")
+    test_results = relationship("TestResult", back_populates="test", cascade="all, delete-orphan")
+```
+
+#### TestBatch
+```python
+from sqlalchemy import Column, String, DateTime, ForeignKey, Integer, JSON
+from sqlalchemy.sql import func
+from sqlalchemy.orm import relationship
+import uuid
+from ..db.database import Base
+
+class TestBatch(Base):
+    __tablename__ = "test_batches"
+    
+    id = Column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
+    batch_id = Column(String(50), unique=True, nullable=False, index=True)
+    system_id = Column(String(36), ForeignKey("systems.id"), nullable=False)
+    api_id = Column(String(36), ForeignKey("apis.id"), nullable=True)
+    environment = Column(String(50), nullable=False)
+    total_count = Column(Integer, nullable=False, default=0)
+    pass_count = Column(Integer, nullable=False, default=0)
+    fail_count = Column(Integer, nullable=False, default=0)
+    error_count = Column(Integer, nullable=False, default=0)
+    start_time = Column(DateTime(timezone=True), server_default=func.now())
+    end_time = Column(DateTime(timezone=True), nullable=True)
+    status = Column(String(50), nullable=False, default="RUNNING")
+    
+    # Relationships
+    system = relationship("System", backref="test_batches")
+    api = relationship("Api", backref="test_batches")
+    test_results = relationship("TestResult", back_populates="batch", cascade="all, delete-orphan")
+```
+
+#### TestResult
+```python
+from sqlalchemy import Column, String, DateTime, ForeignKey, Integer, JSON
+from sqlalchemy.sql import func
+from sqlalchemy.orm import relationship
+import uuid
+from ..db.database import Base
+
+class TestResult(Base):
+    __tablename__ = "test_results"
+    
+    id = Column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
+    test_id = Column(String(36), ForeignKey("endpoint_tests.id"), nullable=False)
+    endpoint_id = Column(String(36), ForeignKey("endpoints.id"), nullable=False)
+    api_id = Column(String(36), ForeignKey("apis.id"), nullable=False)
+    system_id = Column(String(36), ForeignKey("systems.id"), nullable=False)
+    batch_id = Column(String(50), ForeignKey("test_batches.batch_id"), nullable=False)
+    environment = Column(String(50), nullable=False)
+    status = Column(String(50), nullable=False)
+    response_code = Column(Integer, nullable=True)
+    response_time_ms = Column(Integer, nullable=True)
+    request_headers = Column(JSON, nullable=True)
+    request_body = Column(JSON, nullable=True)
+    response_body = Column(JSON, nullable=True)
+    validation_rules = Column(JSON, nullable=True)
+    error_message = Column(String(500), nullable=True)
+    request_url = Column(String(500), nullable=True)
+    api_url = Column(String(500), nullable=True)
+    executed_at = Column(DateTime(timezone=True), server_default=func.now())
+    
+    # Relationships
+    test = relationship("EndpointTest", back_populates="test_results")
+    endpoint = relationship("Endpoint", backref="test_results")
+    api = relationship("Api", backref="test_results")
+    system = relationship("System", backref="test_results")
+    batch = relationship("TestBatch", back_populates="test_results")
+```
+
 ### 枚举类型
 
 ```python
@@ -1109,6 +1540,11 @@ class ResourceType(str, Enum):
     ENDPOINT = "ENDPOINT"
     RELATIONSHIP = "RELATIONSHIP"
     USER = "USER"
+
+class TestStatus(str, Enum):
+    PASS = "PASS"
+    FAIL = "FAIL"
+    ERROR = "ERROR"
 ```
 
 ## API规格 (OpenAPI 3.0)
@@ -1353,6 +1789,99 @@ class AuditLogQueryParams(BaseModel):
     end_date: Optional[datetime] = None
     skip: int = 0
     limit: int = 100
+
+#### Test DTOs
+
+class EndpointTestDTO(BaseModel):
+    id: Optional[str] = None
+    endpoint_id: str
+    name: str = Field(..., max_length=255)
+    description: Optional[str] = Field(None, max_length=300)
+    headers: Optional[Dict[str, Any]] = None
+    request_body: Optional[Dict[str, Any]] = None
+    expected_response: Optional[Dict[str, Any]] = None
+    validation_rules: Optional[Dict[str, Any]] = None
+    created_at: Optional[datetime] = None
+    updated_at: Optional[datetime] = None
+    
+    class Config:
+        from_attributes = True
+
+class CreateEndpointTestRequest(BaseModel):
+    endpoint_id: str
+    name: str = Field(..., max_length=255)
+    description: Optional[str] = Field(None, max_length=300)
+    headers: Optional[Dict[str, Any]] = None
+    request_body: Optional[Dict[str, Any]] = None
+    expected_response: Optional[Dict[str, Any]] = None
+    validation_rules: Optional[Dict[str, Any]] = None
+
+class UpdateEndpointTestRequest(BaseModel):
+    name: Optional[str] = Field(None, max_length=255)
+    description: Optional[str] = Field(None, max_length=300)
+    headers: Optional[Dict[str, Any]] = None
+    request_body: Optional[Dict[str, Any]] = None
+    expected_response: Optional[Dict[str, Any]] = None
+    validation_rules: Optional[Dict[str, Any]] = None
+
+class TestResultDTO(BaseModel):
+    id: Optional[str] = None
+    test_id: str
+    endpoint_id: str
+    api_id: str
+    system_id: str
+    batch_id: str
+    status: TestStatus
+    response_code: Optional[int] = None
+    response_time_ms: Optional[int] = None
+    request_headers: Optional[Dict[str, Any]] = None
+    request_body: Optional[Dict[str, Any]] = None
+    response_body: Optional[Dict[str, Any]] = None
+    validation_rules: Optional[Dict[str, Any]] = None
+    error_message: Optional[str] = None
+    executed_at: Optional[datetime] = None
+    
+    class Config:
+        from_attributes = True
+
+class TestResultQueryParams(BaseModel):
+    system_id: Optional[str] = None
+    api_id: Optional[str] = None
+    batch_id: Optional[str] = None
+    start_date: Optional[datetime] = None
+    end_date: Optional[datetime] = None
+    status: Optional[TestStatus] = None
+    skip: int = 0
+    limit: int = 100
+
+class TestRunResponse(BaseModel):
+    run_id: str
+    results: List[TestResultDTO]
+    total_count: int
+    pass_count: int
+    fail_count: int
+    error_count: int
+
+class TestTrendDTO(BaseModel):
+    date: datetime
+    total_count: int
+    pass_count: int
+    fail_count: int
+    error_count: int
+    pass_rate: float
+
+class TestTrendQueryParams(BaseModel):
+    system_id: Optional[str] = None
+    api_id: Optional[str] = None
+    start_date: Optional[datetime] = None
+    end_date: Optional[datetime] = None
+    interval: str = "day"  # day, week, month
+
+class TestTrendResponse(BaseModel):
+    trends: List[TestTrendDTO]
+    start_date: datetime
+    end_date: datetime
+    interval: str
 ```
 
 ### OpenAPI规格文档结构
@@ -1571,7 +2100,7 @@ settings = Settings()
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
 from apimgmt.database import Base
-from apimgmt.models import System, Api, Endpoint, Tag, Relationship, HealthCheckResult, User, AuditLog
+from apimgmt.models import System, Api, Endpoint, Tag, Relationship, HealthCheckResult, User, AuditLog, EndpointTest, TestResult
 
 # 创建引擎
 engine = create_engine(settings.database_url)
@@ -1587,7 +2116,7 @@ Base.metadata.create_all(bind=engine)
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from apimgmt.config import settings
-from apimgmt.routers import api_router, system_router, endpoint_router, relationship_router, health_check_router, auth_router, audit_router
+from apimgmt.routers import api_router, system_router, endpoint_router, relationship_router, health_check_router, auth_router, audit_router, test_router
 from apimgmt.database import engine, Base
 
 # 创建数据库表
@@ -1617,6 +2146,7 @@ app.include_router(relationship_router, prefix="/api/v1")
 app.include_router(health_check_router, prefix="/api/v1")
 app.include_router(auth_router, prefix="/api/v1")
 app.include_router(audit_router, prefix="/api/v1")
+app.include_router(test_router, prefix="/api/v1")
 
 # 根路径
 @app.get("/")

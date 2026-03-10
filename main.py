@@ -13,7 +13,7 @@ from apimgmt.models.relationship import Relationship
 from apimgmt.models.health_check_result import HealthCheckResult
 from apimgmt.models.user import User
 from apimgmt.models.audit import AuditLog
-from apimgmt.routers import api_router, system_router, endpoint_router, relationship_router, health_check_router
+from apimgmt.routers import api_router, system_router, endpoint_router, relationship_router, health_check_router, test_router
 from apimgmt.routers.auth_router import auth_router
 from apimgmt.routers.audit_router import router as audit_router
 from apimgmt.middleware.auth_middleware import AuthMiddleware
@@ -95,6 +95,7 @@ app.include_router(endpoint_router, prefix="/api/v1/endpoints", tags=["endpoints
 app.include_router(relationship_router, prefix="/api/v1/relationships", tags=["relationships"])
 app.include_router(health_check_router, prefix="/api/v1/health", tags=["health"])
 app.include_router(audit_router, prefix="/api/v1/audit", tags=["audit"])
+app.include_router(test_router)
 
 
 @app.get("/")

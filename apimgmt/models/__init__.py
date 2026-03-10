@@ -7,3 +7,6 @@ from .relationship import Relationship
 from .health_check_result import HealthCheckResult
 from .audit import AuditLog, OperationType, ResourceType
 from .user import User
+from .endpoint_test import EndpointTest
+from .test_result import TestResult
+from .test_batch import TestBatch

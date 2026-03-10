@@ -186,3 +186,57 @@ API管理系统是一个用于管理公司微服务架构下各系统API的平�
 5. THE API管理系统 SHALL 支持用户角色管理，包括ADMIN和USER角色
 6. THE API管理系统 SHALL 允许系统管理员查询用户列表
 
+### 需求 14
+
+**用户故事:** 作为API测试人员，我希望能够为Endpoint添加测试用例，以便验证API的正确性
+
+#### 验收标准
+
+1. THE API管理系统 SHALL 允许用户为Endpoint创建多个测试用例
+2. THE API管理系统 SHALL 为每个测试用例存储请求头（Header）信息
+3. THE API管理系统 SHALL 为每个测试用例存储请求体（Request Body）信息
+4. THE API管理系统 SHALL 支持通过JSON定义的表达式来判断测试是否通过
+5. THE API管理系统 SHALL 允许用户编辑和删除测试用例
+6. THE API管理系统 SHALL 提供测试用例列表查询接口
+7. THE API管理系统 SHALL 限制测试用例描述长度为300字符
+8. THE API管理系统 SHALL 为测试用例的创建、更新、删除操作记录审计日志
+9. THE API管理系统 SHALL 为每个测试用例存储环境信息（如dev、uat、prod）
+10. THE API管理系统 SHALL 支持按环境筛选测试用例
+
+### 需求 15
+
+**用户故事:** 作为API测试人员，我希望能够批量执行API的所有测试用例，以便快速验证API的整体状态
+
+#### 验收标准
+
+1. THE API管理系统 SHALL 提供API接口，允许用户选择一个API并执行其所有Endpoint的测试用例
+2. THE API管理系统 SHALL 支持执行API测试时选择环境（如dev、uat、prod）
+3. THE API管理系统 SHALL 只执行对应环境的测试用例
+4. THE API管理系统 SHALL 按顺序执行选定API下所有Endpoint的测试用例
+5. THE API管理系统 SHALL 为每次测试执行生成唯一的批次号（格式为环境_年月日时分秒）
+6. THE API管理系统 SHALL 记录每个测试用例的执行结果（通过/失败/错误）
+7. THE API管理系统 SHALL 记录测试执行过程中的详细信息，包括：
+   - 请求头（Header）
+   - 请求体（Request Body）
+   - 响应体（Response Body）
+   - 对比表达式
+   - HTTP状态码
+   - 请求时间
+8. THE API管理系统 SHALL 为每个测试执行结果存储API ID、系统ID和环境信息
+9. THE API管理系统 SHALL 限制错误信息长度为500字符
+10. THE API管理系统 SHALL 返回测试执行的汇总结果，包括总测试数、通过数、失败数和错误数
+
+### 需求 16
+
+**用户故事:** 作为API测试人员，我希望能够查询测试执行结果，以便分析API的历史表现
+
+#### 验收标准
+
+1. THE API管理系统 SHALL 提供API接口，允许根据系统、API、环境、批次号和执行时间范围查询测试执行结果
+2. THE API管理系统 SHALL 支持测试执行结果的分页查询
+3. THE API管理系统 SHALL 提供测试执行结果的详细信息，包括每个测试用例的执行状态和详细数据
+4. THE API管理系统 SHALL 支持按测试执行状态（通过/失败/错误）进行筛选
+5. THE API管理系统 SHALL 提供测试执行历史趋势分析
+6. THE API管理系统 SHALL 支持按批次号查询完整的测试执行结果集
+7. THE API管理系统 SHALL 支持按环境筛选测试执行结果
+
