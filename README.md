@@ -516,3 +516,15 @@ alembic upgrade head
 ## License
 
 Copyright © 2026 Company. All rights reserved.
+
+# 检查 Docker Compose V2 是否可用
+docker compose --version
+
+# 使用 Docker Compose V2 构建镜像
+docker compose build
+
+# 启动容器
+docker compose up -d
+
+# 检查容器状态
+docker compose ps

@@ -17,6 +17,21 @@ services:
       timeout: 5s
       retries: 5
 
+  api:
+    build: .
+    restart: unless-stopped
+    depends_on:
+      db:
+        condition: service_healthy
+    environment:
+      DATABASE_URL: postgresql://apiuser:apipassword@db:5432/apimgmt
+      HOST: 0.0.0.0
+      PORT: 8000
+    ports:
+      - "8000:8000"
+    volumes:
+      - .:/app
+
 volumes:
   db-data:
     driver: local
